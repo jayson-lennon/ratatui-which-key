@@ -1,4 +1,4 @@
-use crate::{parse_key_sequence, Key, Keymap};
+use crate::{Key, Keymap, parse_key_sequence};
 
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
@@ -82,7 +82,7 @@ mod tests {
     fn bind_combines_prefix_with_sequence() {
         // Given a keymap with a described prefix group.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("g", "goto");
+        keymap.describe_group("g", "goto");
         let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
 
         // When binding under the prefix.
@@ -111,7 +111,7 @@ mod tests {
     fn describe_prefix_sets_nested_description() {
         // Given a keymap with a described prefix group.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("g", "goto");
+        keymap.describe_group("g", "goto");
         let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
 
         // When adding a nested prefix description.
@@ -132,7 +132,7 @@ mod tests {
     fn describe_creates_nested_group() {
         // Given a keymap with a described prefix group.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("g", "goto");
+        keymap.describe_group("g", "goto");
         let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
 
         // When creating a nested group with bindings.

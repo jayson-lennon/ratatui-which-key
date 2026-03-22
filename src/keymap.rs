@@ -1,6 +1,6 @@
 use crate::{
-    parse_key_sequence, Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild,
-    KeyNode, LeafEntry, NodeResult, ScopeBuilder,
+    Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry,
+    NodeResult, ScopeBuilder, parse_key_sequence,
 };
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
@@ -407,7 +407,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
-    pub fn describe(&mut self, prefix: &str, description: &'static str) -> &mut Self
+    pub fn describe_group(&mut self, prefix: &str, description: &'static str) -> &mut Self
     where
         K: Clone,
         S: Clone,
@@ -529,12 +529,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     ///          .bind("e", Action::GoEnd, "go to end", Navigation);
     /// });
     /// ```
-    pub fn describe_prefix<F>(
-        &mut self,
-        prefix: &str,
-        description: &'static str,
-        bindings: F,
-    ) -> &mut Self
+    pub fn group<F>(&mut self, prefix: &str, description: &'static str, bindings: F) -> &mut Self
     where
         K: Clone,
         S: Clone,
@@ -571,8 +566,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::keymap_with_binding;
     use crate::CrosstermKey;
+    use crate::test_utils::keymap_with_binding;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {
@@ -1353,7 +1348,7 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         // When describing a prefix.
-        keymap.describe("g", "go commands");
+        keymap.describe_group("g", "go commands");
 
         // Then a branch is created with the description.
         assert_eq!(keymap.bindings().len(), 1);
@@ -1387,7 +1382,7 @@ mod tests {
         );
 
         // When describing the prefix.
-        keymap.describe("g", "go commands");
+        keymap.describe_group("g", "go commands");
 
         // Then the description is updated.
         let child = &keymap.bindings()[0];
@@ -1401,7 +1396,7 @@ mod tests {
     #[test]
     fn single_level_branch_count_is_one() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("a", "single command");
+        keymap.describe_group("a", "single command");
 
         assert_eq!(keymap.bindings().len(), 1);
     }
@@ -1409,7 +1404,7 @@ mod tests {
     #[test]
     fn single_level_branch_key_is_a() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("a", "single command");
+        keymap.describe_group("a", "single command");
 
         assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('a'));
     }
@@ -1417,7 +1412,7 @@ mod tests {
     #[test]
     fn single_level_branch_description_is_set() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("a", "single command");
+        keymap.describe_group("a", "single command");
 
         if let KeyNode::Branch { description, .. } = &keymap.bindings()[0].node {
             assert_eq!(*description, "single command");
@@ -1429,7 +1424,7 @@ mod tests {
     #[test]
     fn single_level_branch_has_no_children() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("a", "single command");
+        keymap.describe_group("a", "single command");
 
         if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
             assert!(children.is_empty());
@@ -1441,7 +1436,7 @@ mod tests {
     #[test]
     fn nested_branches_first_key_is_a() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("abc", "nested command");
+        keymap.describe_group("abc", "nested command");
 
         assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('a'));
     }
@@ -1449,7 +1444,7 @@ mod tests {
     #[test]
     fn nested_branches_first_description_is_nested_command() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("abc", "nested command");
+        keymap.describe_group("abc", "nested command");
 
         if let KeyNode::Branch { description, .. } = &keymap.bindings()[0].node {
             assert_eq!(*description, "nested command");
@@ -1461,7 +1456,7 @@ mod tests {
     #[test]
     fn nested_branches_second_key_is_b() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("abc", "nested command");
+        keymap.describe_group("abc", "nested command");
 
         if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
             assert_eq!(children[0].key, CrosstermKey::Char('b'));
@@ -1473,7 +1468,7 @@ mod tests {
     #[test]
     fn nested_branches_third_key_is_c() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("abc", "nested command");
+        keymap.describe_group("abc", "nested command");
 
         if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
             if let KeyNode::Branch { children, .. } = &children[0].node {
@@ -1489,7 +1484,7 @@ mod tests {
     #[test]
     fn nested_branches_third_level_is_leaf() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("abc", "nested command");
+        keymap.describe_group("abc", "nested command");
 
         if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
             if let KeyNode::Branch { children, .. } = &children[0].node {
@@ -1512,7 +1507,7 @@ mod tests {
 
         // When using describe and bind together.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe("g", "go commands").bind(
+        keymap.describe_group("g", "go commands").bind(
             "gg",
             TestAction::Quit,
             "go to top",
@@ -1543,7 +1538,7 @@ mod tests {
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
 
         // When describing an empty prefix.
-        keymap.describe("", "empty");
+        keymap.describe_group("", "empty");
 
         // Then no bindings are created.
         assert!(keymap.bindings().is_empty());

@@ -91,7 +91,7 @@ where
     pub fn handle_key(&mut self, key: K) -> KeyResult<A> {
         if key.is_escape() {
             self.dismiss();
-            return KeyResult::dismiss();
+            return KeyResult { action: None };
         }
 
         if key.is_backspace() {
@@ -99,14 +99,14 @@ where
             if self.current_sequence.is_empty() {
                 self.dismiss();
             }
-            return KeyResult::consumed();
+            return KeyResult { action: None };
         }
 
         self.current_sequence.push(key.clone());
         match self.keymap.navigate(&self.current_sequence) {
             Some(NodeResult::Branch { .. }) => {
                 self.active = true;
-                KeyResult::consumed()
+                KeyResult { action: None }
             }
             Some(NodeResult::Leaf { action }) => {
                 self.active = false;
@@ -115,7 +115,7 @@ where
             }
             None => {
                 self.dismiss();
-                KeyResult::dismiss()
+                KeyResult { action: None }
             }
         }
     }

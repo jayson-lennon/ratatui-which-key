@@ -6,14 +6,14 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
-    Frame, Terminal,
 };
 use ratatui_which_key::{CrosstermKey, Keymap, ScopeBuilder, WhichKey, WhichKeyState};
 use std::io;
@@ -67,9 +67,9 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
     keymap
-        .describe("<space>", "<leader>")
-        .describe("<space>q", "1")
-        .describe("<space>qw", "2");
+        .describe_group("<space>", "<leader>")
+        .describe_group("<space>q", "1")
+        .describe_group("<space>qw", "2");
 
     keymap.scope(Scope::Global, |global| {
         global
@@ -82,11 +82,11 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     });
 
     keymap
-        .describe_prefix("g", "goto", |g| {
+        .group("g", "goto", |g| {
             g.bind("g", Action::MoveUp, "go to top", Category::Navigation, Scope::Global)
              .bind("e", Action::MoveDown, "go to end", Category::Navigation, Scope::Global);
         })
-        .describe_prefix("f", "file", |f| {
+        .group("f", "file", |f| {
             f.bind("s", Action::Save, "save file", Category::General, Scope::Global)
              .bind("o", Action::OpenFile, "open file", Category::General, Scope::Global);
         });
