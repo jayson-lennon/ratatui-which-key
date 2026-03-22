@@ -9,33 +9,48 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```
 //! use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
 //!
 //! // Define your action type
-//! #[derive(Clone)]
+//! #[derive(Debug, Clone)]
 //! enum Action { Quit, Save }
 //!
+//! impl std::fmt::Display for Action {
+//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//!         match self {
+//!             Action::Quit => write!(f, "quit"),
+//!             Action::Save => write!(f, "save"),
+//!         }
+//!     }
+//! }
+//!
 //! // Define your scope type
-//! #[derive(Clone, PartialEq)]
+//! #[derive(Debug, Clone, PartialEq)]
 //! enum Scope { Global, Insert }
 //!
+//! // Define keybind categories
+//! #[derive(Debug, Clone, PartialEq)]
+//! enum Category { General, Navigation }
+//!
 //! // Build the keymap
-//! let mut keymap: Keymap<CrosstermKey, Scope, Action> = Keymap::new();
-//! keymap.bind("q", Action::Quit, Scope::Global);
+//! let mut keymap: Keymap<CrosstermKey, Scope, Action, Category> = Keymap::new();
+//! keymap.bind("q", Action::Quit, Category::General, Scope::Global);
 //!
 //! // Create state
 //! let mut state = WhichKeyState::new(keymap, Scope::Global);
 //!
 //! // In your event loop, handle keys
-//! let result = state.handle_key(key);
-//! if let Some(action) = result.action {
+//! let key = CrosstermKey::Char('q');
+//! if let Some(action) = state.handle_key(key).action {
 //!     // dispatch action
 //! }
 //!
 //! // When rendering
 //! let widget = WhichKey::new();
-//! widget.render(buffer, &mut state);
+//! # // (buffer from ratatui)
+//! # let mut buf = ratatui::buffer::Buffer::default();
+//! widget.render(&mut buf, &mut state);
 //! ```
 
 mod category_builder;

@@ -524,10 +524,35 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// keymap.describe("g", "goto", |b| {
-    ///     b.bind("g", Action::GoTop, "go to top", Navigation)
-    ///          .bind("e", Action::GoEnd, "go to end", Navigation);
+    /// ```
+    /// use ratatui_which_key::{Keymap, CrosstermKey};
+    /// # // Define your action type
+    /// # #[derive(Debug, Clone)]
+    /// # enum Action { Quit, Save }
+    ///
+    /// # impl std::fmt::Display for Action {
+    /// #     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    /// #         match self {
+    /// #             Action::Quit => write!(f, "quit"),
+    /// #             Action::Save => write!(f, "save"),
+    /// #         }
+    /// #     }
+    /// # }
+    ///
+    /// # // Define your scope type
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # enum Scope { Global, Insert }
+    ///
+    /// # // Define keybind categories
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # enum Category { General, Navigation }
+    ///
+    /// # let mut keymap: Keymap<CrosstermKey, Scope, Action, Category> = Keymap::new();
+    /// keymap.group("g", "general", |b| {
+    ///     // keybind is `gq`
+    ///     b.bind("q", Action::Quit, Category::General, Scope::Global)
+    ///     // keybind is `gs`
+    ///      .bind("s", Action::Save, Category::General, Scope::Global);
     /// });
     /// ```
     pub fn group<F>(&mut self, prefix: &str, description: &'static str, bindings: F) -> &mut Self
