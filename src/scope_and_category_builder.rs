@@ -15,20 +15,15 @@ impl<'a, K: Key, S, A, C> ScopeAndCategoryBuilder<'a, K, S, A, C> {
         }
     }
 
-    pub fn bind(&mut self, sequence: &str, action: A, description: &'static str) -> &mut Self
+    pub fn bind(&mut self, sequence: &str, action: A) -> &mut Self
     where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
-        self.keymap.bind(
-            sequence,
-            action,
-            description,
-            self.category.clone(),
-            self.scope.clone(),
-        );
+        self.keymap
+            .bind(sequence, action, self.category.clone(), self.scope.clone());
         self
     }
 }
@@ -46,7 +41,7 @@ mod tests {
         let mut builder =
             ScopeAndCategoryBuilder::new(&mut keymap, TestScope::Global, TestCategory::Navigation);
 
-        builder.bind("h", TestAction::Open, "open help");
+        builder.bind("h", TestAction::Open);
 
         let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
         assert!(node.is_some());
@@ -68,9 +63,9 @@ mod tests {
             ScopeAndCategoryBuilder::new(&mut keymap, TestScope::Insert, TestCategory::General);
 
         builder
-            .bind("q", TestAction::Quit, "quit")
-            .bind("s", TestAction::Save, "save")
-            .bind("o", TestAction::Open, "open");
+            .bind("q", TestAction::Quit)
+            .bind("s", TestAction::Save)
+            .bind("o", TestAction::Open);
 
         let quit_node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
         let save_node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);

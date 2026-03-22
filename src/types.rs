@@ -3,7 +3,7 @@ use crate::Key;
 #[derive(Debug, Clone)]
 pub struct Binding<K: Key> {
     pub key: K,
-    pub description: &'static str,
+    pub description: String,
 }
 
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct BindingGroup<K: Key> {
 #[derive(Debug, Clone)]
 pub struct DisplayBinding<K, C> {
     pub key: K,
-    pub description: &'static str,
+    pub description: String,
     pub category: C,
 }
 

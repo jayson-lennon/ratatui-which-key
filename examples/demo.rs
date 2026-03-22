@@ -14,6 +14,13 @@ use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Scope {
+    Global,
+    Insert,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Category {
     General,
     Navigation,
@@ -24,53 +31,64 @@ enum Category {
 enum Action {
     Quit,
     ToggleHelp,
-    MoveUp,
-    MoveDown,
-    Save,
-    OpenFile,
-    Delete,
+    GoTop,
+    GoEnd,
+    GoDown,
     EnterInsert,
     EnterNormal,
-    NewLine,
-    GoLeft,
-    GoRight,
+    Append,
+    Delete,
+    NewLineBelow,
+    NewLineAbove,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Scope {
-    Global,
-    Insert,
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Action::Quit => write!(f, "Quit"),
+            Action::ToggleHelp => write!(f, "ToggleHelp"),
+            Action::GoTop => write!(f, "GoTop"),
+            Action::GoEnd => write!(f, "GoEnd"),
+            Action::GoDown => write!(f, "GoDown"),
+            Action::EnterInsert => write!(f, "EnterInsert"),
+            Action::EnterNormal => write!(f, "EnterNormal"),
+            Action::Append => write!(f, "Append"),
+            Action::Delete => write!(f, "Delete"),
+            Action::NewLineBelow => write!(f, "NewLineBelow"),
+            Action::NewLineAbove => write!(f, "NewLineAbove"),
+        }
+    }
 }
 
 #[rustfmt::skip]
 fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
+    // Leader prefix for sequences
+    keymap.describe_group("<space>", "<leader>");
+
     // Normal mode: .scope_and_category() for General bindings
     keymap.scope_and_category(Scope::Global, Category::General, |g| {
-        g.bind("q", Action::Quit, "quit")
-            .bind("?", Action::ToggleHelp, "show help")
-            .bind("i", Action::EnterInsert, "enter insert mode");
+        g.bind("q", Action::Quit)
+            .bind("?", Action::ToggleHelp)
+            .bind("i", Action::EnterInsert);
     });
 
-    // Normal mode: .scope_and_category() for Navigation bindings
+    // Normal mode: .scope_and_category() for Navigation bindings (sequences)
     keymap.scope_and_category(Scope::Global, Category::Navigation, |g| {
-        g.bind("k", Action::MoveUp, "move up")
-            .bind("j", Action::MoveDown, "move down")
-            .bind("h", Action::GoLeft, "go left")
-            .bind("l", Action::GoRight, "go right");
+        g.bind("<leader>gg", Action::GoTop)
+            .bind("<leader>ge", Action::GoEnd)
+            .bind("<leader>gd", Action::GoDown);
     });
 
-    // Insert mode: .scope() with explicit categories - bindings share scope but differ in category
+    // Insert mode: .scope() with distinct bindings (no overlap with Normal)
     keymap.scope(Scope::Insert, |insert| {
         insert
-            .bind("<esc>", Action::EnterNormal, "exit insert mode", Category::General)
-            .bind("x", Action::Delete, "delete char", Category::General)
-            .bind("<enter>", Action::NewLine, "insert newline", Category::General)
-            .bind("h", Action::GoLeft, "move left", Category::Navigation)
-            .bind("l", Action::GoRight, "move right", Category::Navigation)
-            .bind("k", Action::MoveUp, "move up", Category::Navigation)
-            .bind("j", Action::MoveDown, "move down", Category::Navigation);
+            .bind("<esc>", Action::EnterNormal, Category::General)
+            .bind("a", Action::Append, Category::General)
+            .bind("x", Action::Delete, Category::General)
+            .bind("o", Action::NewLineBelow, Category::General)
+            .bind("O", Action::NewLineAbove, Category::General);
     });
 
     keymap
@@ -104,28 +122,33 @@ impl App {
                 self.which_key_state.toggle();
                 "Help toggled".to_string()
             }
-            Action::MoveUp => {
-                self.position = self.position.saturating_sub(1);
-                format!("Moved up to {}", self.position)
+            Action::GoTop => {
+                self.position = 0;
+                "Went to top".to_string()
             }
-            Action::MoveDown => {
-                self.position = self.position.saturating_add(1);
-                format!("Moved down to {}", self.position)
+            Action::GoEnd => {
+                self.position = u32::MAX;
+                "Went to end".to_string()
             }
-            Action::GoLeft => format!("Moved left (pos={})", self.position),
-            Action::GoRight => format!("Moved right (pos={})", self.position),
-            Action::Save => "File saved".to_string(),
-            Action::OpenFile => "File opened".to_string(),
-            Action::Delete => format!("Deleted at position {}", self.position),
+            Action::GoDown => {
+                self.position = self.position.saturating_add(10);
+                format!("Moved down 10 to {}", self.position)
+            }
             Action::EnterInsert => {
                 self.which_key_state.set_scope(Scope::Insert);
-                "Entered Insert mode (press <esc> to exit)".to_string()
+                "Entered Insert mode".to_string()
             }
             Action::EnterNormal => {
+                self.which_key_state.dismiss();
                 self.which_key_state.set_scope(Scope::Global);
                 "Returned to Normal mode".to_string()
             }
-            Action::NewLine => "New line inserted".to_string(),
+            Action::Append => "Appended text".to_string(),
+            Action::Delete => {
+                format!("Deleted at position {}", self.position)
+            }
+            Action::NewLineBelow => "Inserted line below".to_string(),
+            Action::NewLineAbove => "Inserted line above".to_string(),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {

@@ -54,33 +54,30 @@ pub fn render_popup<K, S, A, C>(
 }
 
 /// Column data for rendering.
-struct ColumnData<'a, K: Key> {
-    groups: Vec<(&'a str, Vec<(K, &'a str)>)>,
+struct ColumnData<K: Key> {
+    groups: Vec<(String, Vec<(K, String)>)>,
     max_key_width: usize,
     max_desc_width: usize,
 }
 
-impl<K: Key> ColumnData<'_, K> {
+impl<K: Key> ColumnData<K> {
     const fn content_width(&self) -> usize {
         self.max_key_width + 1 + self.max_desc_width
     }
 }
 
 /// Build column data from binding groups.
-fn build_columns<'a, K: Key>(
-    groups: &'a [BindingGroup<K>],
-    max_height: u16,
-) -> Vec<ColumnData<'a, K>> {
+fn build_columns<K: Key>(groups: &[BindingGroup<K>], max_height: u16) -> Vec<ColumnData<K>> {
     let rows_per_column = max_height.saturating_sub(2) as usize;
-    let mut columns: Vec<ColumnData<'a, K>> = Vec::new();
-    let mut current_groups: Vec<(&'a str, Vec<(K, &'a str)>)> = Vec::new();
+    let mut columns: Vec<ColumnData<K>> = Vec::new();
+    let mut current_groups: Vec<(String, Vec<(K, String)>)> = Vec::new();
     let mut current_rows = 0usize;
 
     for group in groups {
-        let items: Vec<(K, &'a str)> = group
+        let items: Vec<(K, String)> = group
             .bindings
             .iter()
-            .map(|b| (b.key.clone(), b.description))
+            .map(|b| (b.key.clone(), b.description.clone()))
             .collect();
         let group_rows = items.len() + 1; // +1 for category header
 
@@ -90,7 +87,7 @@ fn build_columns<'a, K: Key>(
             current_rows = 0;
         }
 
-        current_groups.push((&group.category, items));
+        current_groups.push((group.category.clone(), items));
         current_rows += group_rows;
     }
 
@@ -101,7 +98,7 @@ fn build_columns<'a, K: Key>(
     columns
 }
 
-fn build_column_data<'a, K: Key>(groups: Vec<(&'a str, Vec<(K, &'a str)>)>) -> ColumnData<'a, K> {
+fn build_column_data<K: Key>(groups: Vec<(String, Vec<(K, String)>)>) -> ColumnData<K> {
     let max_key_width = groups
         .iter()
         .flat_map(|(_, items)| items.iter())
@@ -128,7 +125,7 @@ fn build_column_data<'a, K: Key>(groups: Vec<(&'a str, Vec<(K, &'a str)>)>) -> C
 fn calculate_popup_area<K: Key>(
     config: &WhichKey,
     frame_area: Rect,
-    columns: &[ColumnData<'_, K>],
+    columns: &[ColumnData<K>],
     title: &str,
 ) -> Rect {
     let column_gap = 1u16;
@@ -163,7 +160,7 @@ fn calculate_popup_area<K: Key>(
 
 /// Layout columns within the inner area.
 #[allow(clippy::cast_possible_truncation)]
-fn layout_columns<K: Key>(columns: &[ColumnData<'_, K>], inner_area: Rect) -> Vec<Rect> {
+fn layout_columns<K: Key>(columns: &[ColumnData<K>], inner_area: Rect) -> Vec<Rect> {
     let column_gap = 1u16;
     let mut result = Vec::with_capacity(columns.len());
     let mut x = inner_area.x;
@@ -181,7 +178,7 @@ fn layout_columns<K: Key>(columns: &[ColumnData<'_, K>], inner_area: Rect) -> Ve
 fn render_column<K: Key>(
     buf: &mut Buffer,
     area: Rect,
-    column_data: &ColumnData<'_, K>,
+    column_data: &ColumnData<K>,
     config: &WhichKey,
 ) {
     let mut y = area.y;
@@ -193,7 +190,7 @@ fn render_column<K: Key>(
 
         // Render category header (if not empty)
         if !category.is_empty() {
-            let header = Paragraph::new(*category).style(config.category_style);
+            let header = Paragraph::new(category.clone()).style(config.category_style);
             header.render(Rect::new(area.x, y, area.width, 1), buf);
             y += 1;
         }

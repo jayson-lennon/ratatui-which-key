@@ -48,6 +48,17 @@ pub enum TestAction {
 }
 
 #[cfg(test)]
+impl std::fmt::Display for TestAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestAction::Quit => write!(f, "Quit"),
+            TestAction::Save => write!(f, "Save"),
+            TestAction::Open => write!(f, "Open"),
+        }
+    }
+}
+
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestScope {
     Global,
@@ -84,7 +95,6 @@ where
 pub fn state_with_binding_and_sequence<K, S, A, C>(
     key_sequence: &str,
     action: A,
-    desc: &'static str,
     cat: C,
     scope: S,
     pending_keys: &[K],
@@ -92,11 +102,11 @@ pub fn state_with_binding_and_sequence<K, S, A, C>(
 where
     K: crate::Key + Clone,
     S: Clone + PartialEq + Send + Sync,
-    A: Clone + Send + Sync,
+    A: Clone + Send + Sync + std::fmt::Display,
     C: Clone + PartialEq + std::fmt::Debug,
 {
     let mut keymap = Keymap::new();
-    keymap.bind(key_sequence, action, desc, cat, scope.clone());
+    keymap.bind(key_sequence, action, cat, scope.clone());
     state_with_pending_keys(keymap, pending_keys, scope)
 }
 
@@ -240,18 +250,17 @@ pub fn assert_nth_child_is_leaf<K, S, A, C>(
 pub fn keymap_with_binding<K, S, A, C>(
     keys: &str,
     action: A,
-    desc: &'static str,
     cat: C,
     scope: S,
 ) -> Keymap<K, S, A, C>
 where
     K: crate::Key,
     S: Clone + PartialEq,
-    A: Clone,
+    A: Clone + std::fmt::Display,
     C: Clone + PartialEq,
 {
     let mut keymap = Keymap::new();
-    keymap.bind(keys, action, desc, cat, scope);
+    keymap.bind(keys, action, cat, scope);
     keymap
 }
 
@@ -259,12 +268,11 @@ where
 pub fn test_keymap_with_binding(
     key: &str,
     action: TestAction,
-    description: &'static str,
     category: TestCategory,
     scope: TestScope,
 ) -> Keymap<CrosstermKey, TestScope, TestAction, TestCategory> {
     let mut keymap = Keymap::new();
-    keymap.bind(key, action, description, category, scope);
+    keymap.bind(key, action, category, scope);
     keymap
 }
 
@@ -272,13 +280,12 @@ pub fn test_keymap_with_binding(
 pub fn test_keymap_with_scope_binding(
     key: &str,
     action: TestAction,
-    description: &'static str,
     category: TestCategory,
     scope: TestScope,
 ) -> Keymap<CrosstermKey, TestScope, TestAction, TestCategory> {
     let mut keymap = Keymap::new();
     keymap.scope(scope, |b| {
-        b.bind(key, action, description, category);
+        b.bind(key, action, category);
     });
     keymap
 }

@@ -3,7 +3,7 @@ use crate::Key;
 #[derive(Debug, Clone)]
 pub struct LeafEntry<S, A, C> {
     pub action: A,
-    pub description: &'static str,
+    pub description: String,
     pub category: C,
     pub scope: S,
 }
@@ -18,10 +18,12 @@ pub enum KeyNode<K: Key, S, A, C> {
 }
 
 impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
-    pub fn description(&self) -> &'static str {
+    pub fn description(&self) -> String {
         match self {
-            KeyNode::Leaf(entries) => entries.first().map_or("", |e| e.description),
-            KeyNode::Branch { description, .. } => description,
+            KeyNode::Leaf(entries) => entries
+                .first()
+                .map_or(String::new(), |e| e.description.clone()),
+            KeyNode::Branch { description, .. } => description.to_string(),
         }
     }
 
@@ -71,7 +73,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
         Self { key, node }
     }
 
-    pub fn leaf(key: K, action: A, description: &'static str, category: C, scope: S) -> Self {
+    pub fn leaf(key: K, action: A, description: String, category: C, scope: S) -> Self {
         let entry = LeafEntry {
             action,
             description,
@@ -99,7 +101,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
 pub struct LeafBinding<K: Key, S, A, C> {
     pub key: K,
     pub action: A,
-    pub description: &'static str,
+    pub description: String,
     pub category: C,
     pub scope: S,
 }
@@ -113,7 +115,7 @@ mod tests {
         KeyChild::leaf(
             TestKey::Char('q'),
             TestAction::Quit,
-            "quit application",
+            "quit application".to_string(),
             TestCategory::General,
             TestScope::Normal,
         )
@@ -123,14 +125,14 @@ mod tests {
         let save_child = KeyChild::leaf(
             TestKey::Char('s'),
             TestAction::Save,
-            "save file",
+            "save file".to_string(),
             TestCategory::General,
             TestScope::Normal,
         );
         let open_child = KeyChild::leaf(
             TestKey::Char('o'),
             TestAction::Open,
-            "open file",
+            "open file".to_string(),
             TestCategory::Navigation,
             TestScope::Normal,
         );
@@ -210,7 +212,7 @@ mod tests {
         let inner_leaf = KeyChild::leaf(
             TestKey::Char('d'),
             TestAction::Quit,
-            "delete",
+            "delete".to_string(),
             TestCategory::General,
             TestScope::Normal,
         );

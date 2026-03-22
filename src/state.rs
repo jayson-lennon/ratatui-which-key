@@ -168,6 +168,15 @@ mod tests {
         Save,
     }
 
+    impl std::fmt::Display for TestAction {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestAction::Quit => write!(f, "quit"),
+                TestAction::Save => write!(f, "save"),
+            }
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq)]
     enum TestScope {
         Global,
@@ -305,7 +314,6 @@ mod tests {
         let mut state = state_with_binding_and_sequence(
             "qw",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
             &[],
@@ -325,7 +333,6 @@ mod tests {
         let mut state = state_with_binding_and_sequence(
             "qw",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
             &[TestKey::Char('q')],

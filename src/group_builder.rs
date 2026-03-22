@@ -1,4 +1,4 @@
-use crate::{Key, Keymap, parse_key_sequence};
+use crate::{parse_key_sequence, Key, Keymap};
 
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
@@ -10,18 +10,11 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         Self { keymap, prefix }
     }
 
-    pub fn bind(
-        &mut self,
-        sequence: &str,
-        action: A,
-        description: &'static str,
-        category: C,
-        scope: S,
-    ) -> &mut Self
+    pub fn bind(&mut self, sequence: &str, action: A, category: C, scope: S) -> &mut Self
     where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         let keys = parse_key_sequence(sequence);
@@ -30,7 +23,7 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         }
         let full_sequence: Vec<K> = self.prefix.iter().cloned().chain(keys).collect();
         self.keymap
-            .insert_into_tree(&full_sequence, action, description, category, scope);
+            .insert_into_tree(&full_sequence, action, category, scope);
         self
     }
 
@@ -89,7 +82,6 @@ mod tests {
         builder.bind(
             "h",
             TestAction::Quit,
-            "go home",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -101,7 +93,7 @@ mod tests {
         if let Some(KeyNode::Leaf(entries)) = node {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Quit);
-            assert_eq!(entries[0].description, "go home");
+            assert_eq!(entries[0].description, TestAction::Quit.to_string());
         } else {
             panic!("Expected leaf node with Quit action");
         }
@@ -140,14 +132,12 @@ mod tests {
             nested.bind(
                 "l",
                 TestAction::Open,
-                "git log",
                 TestCategory::General,
                 TestScope::Global,
             );
             nested.bind(
                 "s",
                 TestAction::Save,
-                "git status",
                 TestCategory::General,
                 TestScope::Global,
             );

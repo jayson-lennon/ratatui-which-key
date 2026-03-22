@@ -34,39 +34,26 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         &self.bindings
     }
 
-    pub fn bind(
-        &mut self,
-        sequence: &str,
-        action: A,
-        description: &'static str,
-        category: C,
-        scope: S,
-    ) -> &mut Self
+    pub fn bind(&mut self, sequence: &str, action: A, category: C, scope: S) -> &mut Self
     where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         let keys = parse_key_sequence(sequence);
         if keys.is_empty() {
             return self;
         }
-        self.insert_into_tree(&keys, action, description, category, scope);
+        self.insert_into_tree(&keys, action, category, scope);
         self
     }
 
-    pub(super) fn insert_into_tree(
-        &mut self,
-        keys: &[K],
-        action: A,
-        description: &'static str,
-        category: C,
-        scope: S,
-    ) where
+    pub(super) fn insert_into_tree(&mut self, keys: &[K], action: A, category: C, scope: S)
+    where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         if keys.is_empty() {
@@ -74,37 +61,27 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
         let first_key = keys[0].clone();
         if let Some(child) = self.bindings.iter_mut().find(|c| c.key == first_key) {
-            Self::insert_into_child(child, keys, action, description, category, scope);
+            Self::insert_into_child(child, keys, action, category, scope);
         } else {
-            let new_child = Self::build_tree(keys, action, description, category, scope);
+            let new_child = Self::build_tree(keys, action, category, scope);
             self.bindings.push(new_child);
         }
     }
 
-    fn build_tree(
-        keys: &[K],
-        action: A,
-        description: &'static str,
-        category: C,
-        scope: S,
-    ) -> KeyChild<K, S, A, C>
+    fn build_tree(keys: &[K], action: A, category: C, scope: S) -> KeyChild<K, S, A, C>
     where
         K: Clone,
         S: Clone,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         if keys.len() == 1 {
+            let description = action.to_string();
             KeyChild::leaf(keys[0].clone(), action, description, category, scope)
         } else {
             let first = keys[0].clone();
             let rest = &keys[1..];
-            let child = Self::build_tree(rest, action, description, category, scope);
-            // warn!(
-            //     key = %first.display(),
-            //     "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
-            //     first.display()
-            // );
+            let child = Self::build_tree(rest, action, category, scope);
             KeyChild::branch(first, "...", vec![child])
         }
     }
@@ -113,16 +90,16 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         child: &mut KeyChild<K, S, A, C>,
         keys: &[K],
         action: A,
-        description: &'static str,
         category: C,
         scope: S,
     ) where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         if keys.len() == 1 {
+            let description = action.to_string();
             match &mut child.node {
                 KeyNode::Leaf(entries) => {
                     if let Some(existing) = entries.iter_mut().find(|e| e.scope == scope) {
@@ -153,12 +130,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         let next_key = keys[1].clone();
         match &mut child.node {
             KeyNode::Leaf(_) => {
-                let new_child = Self::build_tree(&keys[1..], action, description, category, scope);
-                // warn!(
-                //     key = %child.key.display(),
-                //     "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
-                //     child.key.display()
-                // );
+                let new_child = Self::build_tree(&keys[1..], action, category, scope);
                 child.node = KeyNode::Branch {
                     description: "...",
                     children: vec![new_child],
@@ -166,17 +138,9 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             }
             KeyNode::Branch { children, .. } => {
                 if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
-                    Self::insert_into_child(
-                        next_child,
-                        &keys[1..],
-                        action,
-                        description,
-                        category,
-                        scope,
-                    );
+                    Self::insert_into_child(next_child, &keys[1..], action, category, scope);
                 } else {
-                    let new_child =
-                        Self::build_tree(&keys[1..], action, description, category, scope);
+                    let new_child = Self::build_tree(&keys[1..], action, category, scope);
                     children.push(new_child);
                 }
             }
@@ -229,7 +193,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     }
 
     #[must_use]
-    pub fn get_children_at_path(&self, keys: &[K]) -> Option<Vec<(K, &'static str)>>
+    pub fn get_children_at_path(&self, keys: &[K]) -> Option<Vec<(K, String)>>
     where
         K: PartialEq + Clone,
     {
@@ -282,7 +246,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                         .find(|entry| entry.scope == scope)
                         .map(|entry| DisplayBinding {
                             key: child.key.clone(),
-                            description: entry.description,
+                            description: entry.description.clone(),
                             category: entry.category.clone(),
                         })
                 }
@@ -290,7 +254,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     Self::find_category_in_children(&child.node, &scope).map(|category| {
                         DisplayBinding {
                             key: child.key.clone(),
-                            description,
+                            description: description.to_string(),
                             category,
                         }
                     })
@@ -357,7 +321,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     format!("{:?}", b.category),
                     Binding {
                         key: b.key.clone(),
-                        description: b.description,
+                        description: b.description.clone(),
                     },
                 )
             })
@@ -594,6 +558,16 @@ mod tests {
         Open,
     }
 
+    impl std::fmt::Display for TestAction {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestAction::Quit => write!(f, "quit"),
+                TestAction::Save => write!(f, "save"),
+                TestAction::Open => write!(f, "open"),
+            }
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq)]
     enum TestScope {
         Global,
@@ -671,7 +645,6 @@ mod tests {
         let keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -692,7 +665,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -710,7 +682,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -728,7 +699,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -746,7 +716,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -769,7 +738,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -792,7 +760,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -811,7 +778,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "<esc>",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -819,7 +785,6 @@ mod tests {
         keymap.bind(
             "<esc>",
             TestAction::Save,
-            "save and quit",
             TestCategory::General,
             TestScope::Insert,
         );
@@ -834,7 +799,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "<esc>",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -842,7 +806,6 @@ mod tests {
         keymap.bind(
             "<esc>",
             TestAction::Save,
-            "save and quit",
             TestCategory::General,
             TestScope::Insert,
         );
@@ -857,7 +820,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "<esc>",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -865,7 +827,6 @@ mod tests {
         keymap.bind(
             "<esc>",
             TestAction::Save,
-            "save and quit",
             TestCategory::General,
             TestScope::Insert,
         );
@@ -880,7 +841,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -888,7 +848,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Save,
-            "save",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -903,7 +862,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -911,7 +869,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Save,
-            "save",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -926,7 +883,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -934,7 +890,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Save,
-            "save",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -949,7 +904,6 @@ mod tests {
         let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -957,7 +911,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Save,
-            "save",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -976,7 +929,6 @@ mod tests {
         keymap.bind(
             "",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -992,7 +944,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1001,7 +952,6 @@ mod tests {
         keymap.bind(
             "gd",
             TestAction::Open,
-            "go to definition",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1017,7 +967,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1026,7 +975,6 @@ mod tests {
         keymap.bind(
             "gd",
             TestAction::Open,
-            "go to definition",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1042,7 +990,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1051,7 +998,6 @@ mod tests {
         keymap.bind(
             "gd",
             TestAction::Open,
-            "go to definition",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1072,7 +1018,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1081,7 +1026,6 @@ mod tests {
         keymap.bind(
             "gd",
             TestAction::Open,
-            "go to definition",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1103,7 +1047,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1112,7 +1055,6 @@ mod tests {
         keymap.bind(
             "gd",
             TestAction::Open,
-            "go to definition",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1135,7 +1077,6 @@ mod tests {
         keymap.bind(
             "g",
             TestAction::Quit,
-            "go",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1144,7 +1085,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Open,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1172,14 +1112,12 @@ mod tests {
             .bind(
                 "q",
                 TestAction::Quit,
-                "quit",
                 TestCategory::General,
                 TestScope::Global,
             )
             .bind(
                 "w",
                 TestAction::Save,
-                "save",
                 TestCategory::General,
                 TestScope::Global,
             );
@@ -1219,14 +1157,12 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
         keymap.bind(
             "w",
             TestAction::Save,
-            "save",
             TestCategory::General,
             TestScope::Global,
         );
@@ -1247,7 +1183,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -1265,7 +1200,6 @@ mod tests {
         let keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -1284,21 +1218,18 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
         keymap.bind(
             "w",
             TestAction::Save,
-            "save",
             TestCategory::General,
             TestScope::Insert,
         );
         keymap.bind(
             "e",
             TestAction::Open,
-            "open",
             TestCategory::General,
             TestScope::Normal,
         );
@@ -1319,7 +1250,6 @@ mod tests {
         keymap.bind(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -1338,14 +1268,12 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
         keymap.bind(
             "q",
             TestAction::Quit,
-            "quit",
             TestCategory::General,
             TestScope::Global,
         );
@@ -1394,7 +1322,6 @@ mod tests {
         keymap.bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1528,7 +1455,6 @@ mod tests {
         keymap.describe_group("g", "go commands").bind(
             "gg",
             TestAction::Quit,
-            "go to top",
             TestCategory::Navigation,
             TestScope::Global,
         );
@@ -1567,7 +1493,7 @@ mod tests {
         // Given a keymap with a global 'q' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General);
         });
 
         // When checking bindings count.
@@ -1580,7 +1506,7 @@ mod tests {
         // Given a keymap with a global 'q' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General);
         });
 
         // When looking up the node at path ['q'].
@@ -1595,7 +1521,7 @@ mod tests {
         // Given a keymap with a global 'q' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General);
         });
 
         // When checking entry count at path ['q'].
@@ -1615,7 +1541,7 @@ mod tests {
         // Given a keymap with a global 'q' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General);
         });
 
         // When checking the scope at path ['q'].
@@ -1635,7 +1561,7 @@ mod tests {
         // Given a keymap with a global 'q' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General);
         });
 
         // When checking the action at path ['q'].
@@ -1655,7 +1581,7 @@ mod tests {
         // Given a keymap with a global 'w' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, "save", TestCategory::General);
+            b.bind("w", TestAction::Save, TestCategory::General);
         });
 
         // When checking bindings count.
@@ -1668,7 +1594,7 @@ mod tests {
         // Given a keymap with a global 'w' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, "save", TestCategory::General);
+            b.bind("w", TestAction::Save, TestCategory::General);
         });
 
         // When looking up the node at path ['w'].
@@ -1683,7 +1609,7 @@ mod tests {
         // Given a keymap with a global 'w' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, "save", TestCategory::General);
+            b.bind("w", TestAction::Save, TestCategory::General);
         });
 
         // When checking entry count at path ['w'].
@@ -1703,7 +1629,7 @@ mod tests {
         // Given a keymap with a global 'w' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, "save", TestCategory::General);
+            b.bind("w", TestAction::Save, TestCategory::General);
         });
 
         // When checking the scope at path ['w'].
@@ -1723,7 +1649,7 @@ mod tests {
         // Given a keymap with a global 'w' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, "save", TestCategory::General);
+            b.bind("w", TestAction::Save, TestCategory::General);
         });
 
         // When checking the action at path ['w'].
@@ -1743,7 +1669,7 @@ mod tests {
         // Given a keymap with a global 'h' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
         // When checking bindings count.
@@ -1756,7 +1682,7 @@ mod tests {
         // Given a keymap with a global 'h' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
         // When looking up the node at path ['h'].
@@ -1771,7 +1697,7 @@ mod tests {
         // Given a keymap with a global 'h' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
         // When checking entry count at path ['h'].
@@ -1791,7 +1717,7 @@ mod tests {
         // Given a keymap with a global 'h' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
         // When checking the scope at path ['h'].
@@ -1811,7 +1737,7 @@ mod tests {
         // Given a keymap with a global 'h' binding.
         let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
         // When checking the action at path ['h'].

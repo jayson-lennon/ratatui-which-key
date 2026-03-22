@@ -15,21 +15,15 @@ impl<'a, K: Key, S, A, C> CategoryBuilder<'a, K, S, A, C> {
     }
 
     /// Adds a keybinding with explicit scope.
-    pub fn bind(
-        &mut self,
-        sequence: &str,
-        action: A,
-        description: &'static str,
-        scope: S,
-    ) -> &mut Self
+    pub fn bind(&mut self, sequence: &str, action: A, scope: S) -> &mut Self
     where
         K: Clone,
         S: Clone + PartialEq,
-        A: Clone,
+        A: Clone + std::fmt::Display,
         C: Clone,
     {
         self.keymap
-            .bind(sequence, action, description, self.category.clone(), scope);
+            .bind(sequence, action, self.category.clone(), scope);
         self
     }
 }
@@ -46,7 +40,7 @@ mod tests {
         // Given a keymap with a category binding using bind() with Navigation category.
         let mut keymap = Keymap::new();
         let mut builder = CategoryBuilder::new(&mut keymap, TestCategory::Navigation);
-        builder.bind("h", TestAction::Open, "open", TestScope::Global);
+        builder.bind("h", TestAction::Open, TestScope::Global);
 
         // When looking up the binding.
         let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
@@ -67,7 +61,7 @@ mod tests {
         // Given a keymap with a chained binding.
         let mut keymap = Keymap::new();
         let mut builder = CategoryBuilder::new(&mut keymap, TestCategory::General);
-        builder.bind("q", TestAction::Quit, "quit", TestScope::Global);
+        builder.bind("q", TestAction::Quit, TestScope::Global);
 
         // When looking up the binding.
         let node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
@@ -87,7 +81,7 @@ mod tests {
         // Given a keymap with a chained binding.
         let mut keymap = Keymap::new();
         let mut builder = CategoryBuilder::new(&mut keymap, TestCategory::Navigation);
-        builder.bind("h", TestAction::Open, "help", TestScope::Global);
+        builder.bind("h", TestAction::Open, TestScope::Global);
 
         // When looking up the binding.
         let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
@@ -107,7 +101,7 @@ mod tests {
         // Given a keymap with a chained binding.
         let mut keymap = Keymap::new();
         let mut builder = CategoryBuilder::new(&mut keymap, TestCategory::General);
-        builder.bind("s", TestAction::Save, "save", TestScope::Global);
+        builder.bind("s", TestAction::Save, TestScope::Global);
 
         // When looking up the binding.
         let node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
