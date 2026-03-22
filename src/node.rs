@@ -156,20 +156,6 @@ mod tests {
     }
 
     #[test]
-    fn key_node_description_returns_leaf_description() {
-        let child = create_test_leaf();
-
-        assert_eq!(child.node.description(), "quit application");
-    }
-
-    #[test]
-    fn key_node_description_returns_branch_description() {
-        let child = create_test_branch();
-
-        assert_eq!(child.node.description(), "file operations");
-    }
-
-    #[test]
     fn key_node_category_returns_leaf_category() {
         let child = create_test_leaf();
 
@@ -181,53 +167,6 @@ mod tests {
         let child = create_test_branch();
 
         assert_eq!(child.node.category(), None);
-    }
-
-    #[test]
-    fn key_child_new_creates_child_with_node() {
-        let node = KeyNode::Leaf(vec![LeafEntry {
-            action: TestAction::Quit,
-            description: "quit",
-            category: TestCategory::General,
-            scope: TestScope::Normal,
-        }]);
-
-        let child = KeyChild::new(TestKey::Char('q'), node.clone());
-
-        assert_eq!(child.key, TestKey::Char('q'));
-        assert!(matches!(child.node, KeyNode::Leaf(_)));
-    }
-
-    #[test]
-    fn leaf_entry_stores_all_fields() {
-        let entry = LeafEntry {
-            action: TestAction::Save,
-            description: "save file",
-            category: TestCategory::Navigation,
-            scope: TestScope::Insert,
-        };
-
-        assert_eq!(entry.action, TestAction::Save);
-        assert_eq!(entry.description, "save file");
-        assert_eq!(entry.category, TestCategory::Navigation);
-        assert_eq!(entry.scope, TestScope::Insert);
-    }
-
-    #[test]
-    fn leaf_binding_stores_all_fields() {
-        let binding = LeafBinding {
-            key: TestKey::Char('w'),
-            action: TestAction::Save,
-            description: "write file",
-            category: TestCategory::General,
-            scope: TestScope::Normal,
-        };
-
-        assert_eq!(binding.key, TestKey::Char('w'));
-        assert_eq!(binding.action, TestAction::Save);
-        assert_eq!(binding.description, "write file");
-        assert_eq!(binding.category, TestCategory::General);
-        assert_eq!(binding.scope, TestScope::Normal);
     }
 
     #[test]

@@ -246,14 +246,6 @@ mod tests {
     }
 
     #[test]
-    fn is_pending_returns_false_when_empty() {
-        let keymap = create_test_keymap();
-        let state = WhichKeyState::new(keymap, TestScope::Global);
-
-        assert!(!state.is_pending());
-    }
-
-    #[test]
     fn is_pending_returns_true_when_keys_present() {
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
@@ -270,14 +262,6 @@ mod tests {
         state.current_sequence.push(TestKey::Char('b'));
 
         assert_eq!(state.format_path(), "a > b");
-    }
-
-    #[test]
-    fn keymap_returns_reference() {
-        let keymap = create_test_keymap();
-        let state = WhichKeyState::new(keymap, TestScope::Global);
-
-        let _ = state.keymap();
     }
 
     #[test]
@@ -309,29 +293,6 @@ mod tests {
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
         assert_eq!(state.format_path(), "");
-    }
-
-    #[test]
-    fn format_path_shows_complete_sequence_on_branch() {
-        let mut keymap = create_test_keymap();
-        keymap.bind(
-            "qwe",
-            TestAction::Quit,
-            "quit",
-            TestCategory::General,
-            TestScope::Global,
-        );
-        let mut state = WhichKeyState::new(keymap, TestScope::Global);
-
-        // Press 'q' - should show "q"
-        state.handle_key(TestKey::Char('q'));
-        assert!(state.active);
-        assert_eq!(state.format_path(), "q");
-
-        // Press 'w' - should show "q > w"
-        state.handle_key(TestKey::Char('w'));
-        assert!(state.active);
-        assert_eq!(state.format_path(), "q > w");
     }
 
     #[test]

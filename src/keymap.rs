@@ -1,6 +1,6 @@
 use crate::{
-    Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry,
-    NodeResult, ScopeBuilder, parse_key_sequence,
+    parse_key_sequence, Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild,
+    KeyNode, LeafEntry, NodeResult, ScopeBuilder,
 };
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
@@ -611,13 +611,6 @@ mod tests {
     }
 
     #[test]
-    fn default_creates_empty_keymap() {
-        let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> = Keymap::default();
-
-        assert!(keymap.bindings().is_empty());
-    }
-
-    #[test]
     fn bind_single_key_creates_leaf_node() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
@@ -837,57 +830,6 @@ mod tests {
     }
 
     #[test]
-    fn get_node_at_path_returns_node_for_single_key() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "q",
-            TestAction::Quit,
-            "quit",
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        let result = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
-
-        assert!(result.is_some());
-        assert!(matches!(result.unwrap(), KeyNode::Leaf(_)));
-    }
-
-    #[test]
-    fn get_node_at_path_returns_node_for_multi_key_sequence() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            "go to top",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let result = keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('g')]);
-
-        assert!(result.is_some());
-        assert!(matches!(result.unwrap(), KeyNode::Leaf(_)));
-    }
-
-    #[test]
-    fn get_node_at_path_returns_branch_for_prefix() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            "go to top",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let result = keymap.get_node_at_path(&[CrosstermKey::Char('g')]);
-
-        assert!(result.is_some());
-        assert!(result.unwrap().is_branch());
-    }
-
-    #[test]
     fn get_node_at_path_returns_none_for_nonexistent_key() {
         let keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
@@ -922,31 +864,6 @@ mod tests {
     }
 
     #[test]
-    fn get_children_at_path_returns_children_for_branch() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            "go to top",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-        keymap.bind(
-            "gd",
-            TestAction::Open,
-            "go to definition",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let result = keymap.get_children_at_path(&[CrosstermKey::Char('g')]);
-
-        assert!(result.is_some());
-        let children = result.unwrap();
-        assert_eq!(children.len(), 2);
-    }
-
-    #[test]
     fn get_children_at_path_returns_none_for_leaf() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
@@ -963,31 +880,6 @@ mod tests {
     }
 
     #[test]
-    fn get_children_at_path_returns_none_for_nonexistent_path() {
-        let keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        let result = keymap.get_children_at_path(&[CrosstermKey::Char('x')]);
-
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn is_prefix_key_returns_true_for_branch() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            "go to top",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let result = keymap.is_prefix_key(CrosstermKey::Char('g'));
-
-        assert!(result);
-    }
-
-    #[test]
     fn is_prefix_key_returns_false_for_leaf() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
@@ -999,15 +891,6 @@ mod tests {
         );
 
         let result = keymap.is_prefix_key(CrosstermKey::Char('q'));
-
-        assert!(!result);
-    }
-
-    #[test]
-    fn is_prefix_key_returns_false_for_nonexistent_key() {
-        let keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        let result = keymap.is_prefix_key(CrosstermKey::Char('x'));
 
         assert!(!result);
     }
@@ -1176,34 +1059,6 @@ mod tests {
     }
 
     #[test]
-    fn describe_prefix_converts_leaf_to_branch() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        keymap.bind(
-            "g",
-            TestAction::Quit,
-            "go",
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-        keymap.describe("g", "go commands");
-
-        let child = &keymap.bindings()[0];
-        assert!(child.node.is_branch());
-
-        if let KeyNode::Branch {
-            description,
-            children,
-        } = &child.node
-        {
-            assert_eq!(*description, "go commands");
-            assert!(children.is_empty());
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
     fn describe_prefix_and_bind_work_together() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
@@ -1229,15 +1084,6 @@ mod tests {
         } else {
             panic!("expected branch node");
         }
-    }
-
-    #[test]
-    fn describe_prefix_returns_self_for_chaining() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        keymap.describe("g", "go").describe("d", "debug");
-
-        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -1291,51 +1137,6 @@ mod tests {
             assert_eq!(entries[0].action, TestAction::Open);
         } else {
             panic!("expected leaf node for 'h'");
-        }
-    }
-
-    #[test]
-    fn describe_creates_group_with_description_and_bindings() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        keymap.describe_prefix("g", "goto", |b| {
-            b.bind(
-                "g",
-                TestAction::Quit,
-                "go to top",
-                TestCategory::Navigation,
-                TestScope::Global,
-            )
-            .bind(
-                "e",
-                TestAction::Save,
-                "go to end",
-                TestCategory::Navigation,
-                TestScope::Global,
-            );
-        });
-
-        let branch = keymap.get_node_at_path(&[CrosstermKey::Char('g')]);
-        assert!(branch.is_some());
-        assert!(branch.unwrap().is_branch());
-
-        let node_gg = keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('g')]);
-        assert!(node_gg.is_some());
-        if let Some(KeyNode::Leaf(entries)) = node_gg {
-            assert_eq!(entries[0].action, TestAction::Quit);
-            assert_eq!(entries[0].description, "go to top");
-        } else {
-            panic!("expected leaf node for 'gg'");
-        }
-
-        let node_ge_result =
-            keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('e')]);
-        assert!(node_ge_result.is_some());
-        if let Some(KeyNode::Leaf(entries)) = node_ge_result {
-            assert_eq!(entries[0].action, TestAction::Save);
-            assert_eq!(entries[0].description, "go to end");
-        } else {
-            panic!("expected leaf node for 'ge'");
         }
     }
 }

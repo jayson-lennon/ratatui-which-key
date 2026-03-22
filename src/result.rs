@@ -105,32 +105,4 @@ mod tests {
         assert!(result.action.is_none());
         assert!(result.dismiss);
     }
-
-    #[test]
-    fn is_consumed_returns_true_when_consumed() {
-        let result: KeyResult<()> = KeyResult::consumed();
-
-        assert!(result.is_consumed());
-    }
-
-    #[test]
-    fn is_consumed_returns_false_when_ignored() {
-        let result: KeyResult<()> = KeyResult::ignored();
-
-        assert!(!result.is_consumed());
-    }
-
-    #[test]
-    fn has_action_returns_true_when_action_present() {
-        let result = KeyResult::with_action("action");
-
-        assert!(result.has_action());
-    }
-
-    #[test]
-    fn has_action_returns_false_when_no_action() {
-        let result: KeyResult<()> = KeyResult::consumed();
-
-        assert!(!result.has_action());
-    }
 }

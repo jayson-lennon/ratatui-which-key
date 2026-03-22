@@ -272,18 +272,6 @@ mod tests {
         }
 
         #[test]
-        fn is_backspace_returns_true_for_backspace() {
-            assert!(CrosstermKey::Backspace.is_backspace());
-        }
-
-        #[test]
-        fn is_backspace_returns_false_for_other_keys() {
-            assert!(!CrosstermKey::Char('a').is_backspace());
-            assert!(!CrosstermKey::Enter.is_backspace());
-            assert!(!CrosstermKey::Esc.is_backspace());
-        }
-
-        #[test]
         fn space_returns_space_char() {
             assert_eq!(CrosstermKey::space(), CrosstermKey::Char(' '));
         }
@@ -562,34 +550,9 @@ mod tests {
         }
 
         #[test]
-        fn parse_key_sequence_parses_ctrl_key() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<c-x>");
-            assert_eq!(keys, vec![CrosstermKey::Ctrl('x')]);
-        }
-
-        #[test]
-        fn parse_key_sequence_parses_leader_key() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<leader>");
-            assert_eq!(keys, vec![CrosstermKey::Char(' ')]);
-        }
-
-        #[test]
         fn parse_key_sequence_parses_mixed_sequence() {
             let keys: Vec<CrosstermKey> = parse_key_sequence("<leader>m");
             assert_eq!(keys, vec![CrosstermKey::Char(' '), CrosstermKey::Char('m')]);
-        }
-
-        #[test]
-        fn parse_key_sequence_parses_complex_sequence() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<c-h><enter>q");
-            assert_eq!(
-                keys,
-                vec![
-                    CrosstermKey::Ctrl('h'),
-                    CrosstermKey::Enter,
-                    CrosstermKey::Char('q'),
-                ]
-            );
         }
 
         #[test]

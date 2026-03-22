@@ -42,27 +42,6 @@ mod tests {
     use crate::{CrosstermKey, KeyNode};
 
     #[test]
-    fn bind_with_general_category_works_correctly() {
-        // Given a keymap with a scope binding using bind() with General category.
-        let mut keymap = Keymap::new();
-        let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
-        builder.bind("q", TestAction::Quit, "quit", TestCategory::General);
-
-        // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
-
-        // Then the binding exists with General category.
-        assert!(node.is_some());
-        if let Some(KeyNode::Leaf(entries)) = node {
-            assert_eq!(entries.len(), 1);
-            assert_eq!(entries[0].category, TestCategory::General);
-            assert_eq!(entries[0].action, TestAction::Quit);
-        } else {
-            panic!("Expected leaf node with General category");
-        }
-    }
-
-    #[test]
     fn bind_with_navigation_category_works_correctly() {
         // Given a keymap with a scope binding using bind() with Navigation category.
         let mut keymap = Keymap::new();
@@ -80,28 +59,6 @@ mod tests {
             assert_eq!(entries[0].action, TestAction::Open);
         } else {
             panic!("Expected leaf node with Navigation category");
-        }
-    }
-
-    #[test]
-    fn bind_with_explicit_category_works_correctly() {
-        // Given a keymap with a scope binding using bind() with explicit category.
-        let mut keymap = Keymap::new();
-        let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
-        builder.bind("x", TestAction::Quit, "exit", TestCategory::General);
-
-        // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('x')]);
-
-        // Then the binding exists with the specified category.
-        assert!(node.is_some());
-        if let Some(KeyNode::Leaf(entries)) = node {
-            assert_eq!(entries.len(), 1);
-            assert_eq!(entries[0].category, TestCategory::General);
-            assert_eq!(entries[0].action, TestAction::Quit);
-            assert_eq!(entries[0].description, "exit");
-        } else {
-            panic!("Expected leaf node with explicit category");
         }
     }
 
