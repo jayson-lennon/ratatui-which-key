@@ -41,7 +41,7 @@
 //! let mut state = WhichKeyState::new(keymap, Scope::Global);
 //!
 //! // In your event loop, handle keys
-//! let key = CrosstermKey::Char('q');
+//! # let key = CrosstermKey::Char('q');
 //! if let Some(action) = state.handle_key(key).action {
 //!     // dispatch action
 //! }
