@@ -43,8 +43,8 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
 
     keymap
         .describe("<space>", "<leader>")
-        .describe("<space>q", "1")
-        .describe("<space>qw", "2")
+        .describe("<leader>q", "1")
+        .describe("<leader>qw", "2")
         .bind("q", Action::Quit, "quit", Category::General, Scope::Global)
         .bind( "<leader>qwe", Action::MoveUp, "nested", Category::General, Scope::Global,)
         .bind( "?", Action::ToggleHelp, "show help", Category::General, Scope::Global,)

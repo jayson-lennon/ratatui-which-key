@@ -270,3 +270,100 @@ pub fn test_keymap_with_binding(
     keymap.bind(key, action, description, category, scope);
     keymap
 }
+
+#[cfg(test)]
+pub fn test_keymap_with_scope_binding(
+    key: &str,
+    action: TestAction,
+    description: &'static str,
+    category: TestCategory,
+    scope: TestScope,
+) -> Keymap<CrosstermKey, TestScope, TestAction, TestCategory> {
+    let mut keymap = Keymap::new();
+    keymap.scope(scope, |b| {
+        b.bind(key, action, description, category);
+    });
+    keymap
+}
+
+#[cfg(test)]
+pub fn assert_leaf_key_and_action(
+    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
+    path: &[CrosstermKey],
+    expected_action: TestAction,
+) {
+    let node = keymap
+        .get_node_at_path(path)
+        .expect("Expected node at path");
+    let entries = match node {
+        KeyNode::Leaf(entries) => entries,
+        KeyNode::Branch { .. } => panic!("Expected Leaf node at path, got Branch"),
+    };
+    assert_eq!(entries[0].action, expected_action);
+}
+
+#[cfg(test)]
+pub fn assert_leaf_entry_count(
+    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
+    path: &[CrosstermKey],
+    expected_count: usize,
+) {
+    let node = keymap
+        .get_node_at_path(path)
+        .expect("Expected node at path");
+    let entries = match node {
+        KeyNode::Leaf(entries) => entries,
+        KeyNode::Branch { .. } => panic!("Expected Leaf node at path, got Branch"),
+    };
+    assert_eq!(entries.len(), expected_count);
+}
+
+#[cfg(test)]
+pub fn assert_leaf_scope_at_index(
+    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
+    path: &[CrosstermKey],
+    index: usize,
+    expected_scope: TestScope,
+) {
+    let node = keymap
+        .get_node_at_path(path)
+        .expect("Expected node at path");
+    let entries = match node {
+        KeyNode::Leaf(entries) => entries,
+        KeyNode::Branch { .. } => panic!("Expected Leaf node at path, got Branch"),
+    };
+    assert_eq!(entries[index].scope, expected_scope);
+}
+
+#[cfg(test)]
+pub fn assert_branch_child_key(
+    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
+    path: &[CrosstermKey],
+    child_index: usize,
+    expected_key: CrosstermKey,
+) {
+    let node = keymap
+        .get_node_at_path(path)
+        .expect("Expected node at path");
+    let children = match node {
+        KeyNode::Leaf(_) => panic!("Expected Branch node at path, got Leaf"),
+        KeyNode::Branch { children, .. } => children,
+    };
+    assert_eq!(children[child_index].key, expected_key);
+}
+
+#[cfg(test)]
+pub fn assert_branch_description(
+    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
+    path: &[CrosstermKey],
+    expected_description: &str,
+) {
+    let node = keymap
+        .get_node_at_path(path)
+        .expect("Expected node at path");
+    let description = match node {
+        KeyNode::Leaf(_) => panic!("Expected Branch node at path, got Leaf"),
+        KeyNode::Branch { description, .. } => *description,
+    };
+    assert_eq!(description, expected_description);
+}
