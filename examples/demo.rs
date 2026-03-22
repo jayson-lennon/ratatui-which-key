@@ -1,14 +1,14 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
-    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
+    Frame, Terminal,
 };
 use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
 use std::io;
@@ -41,26 +41,48 @@ enum Scope {
 fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
+    // Describe group prefixes
     keymap
         .describe_group("<space>", "<leader>")
         .describe_group("<leader>q", "1")
-        .describe_group("<leader>qw", "2")
-        .bind("q", Action::Quit, "quit", Category::General, Scope::Global)
-        .bind( "<leader>qwe", Action::MoveUp, "nested", Category::General, Scope::Global,)
-        .bind( "?", Action::ToggleHelp, "show help", Category::General, Scope::Global,)
-        .bind( "<F1>", Action::ToggleHelp, "show help", Category::General, Scope::Global,)
-        .bind( "k", Action::MoveUp, "move up", Category::Navigation, Scope::Global,)
-        .bind( "j", Action::MoveDown, "move down", Category::Navigation, Scope::Global,)
+        .describe_group("<leader>qw", "2");
+
+    // Use .scope_and_category() for Global + General bindings
+    keymap.scope_and_category(Scope::Global, Category::General, |general| {
+        general
+            .bind("q", Action::Quit, "quit")
+            .bind("?", Action::ToggleHelp, "show help")
+            .bind("<F1>", Action::ToggleHelp, "show help")
+            .bind("<leader>qwe", Action::MoveUp, "nested");
+    });
+
+    // Use .scope_and_category() for Global + Navigation bindings
+    keymap.scope_and_category(Scope::Global, Category::Navigation, |nav| {
+        nav.bind("k", Action::MoveUp, "move up").bind("j", Action::MoveDown, "move down");
+    });
+
+    // Use .scope() for Global scope with explicit categories per bind
+    keymap.scope(Scope::Global, |global| {
+        global.bind("h", Action::MoveUp, "go left", Category::Navigation);
+    });
+
+    // Use .group() for prefix-based organization (keeping group for nested bindings)
+    keymap
         .group("g", "goto", |g| {
-            g.bind( "g", Action::MoveUp, "go to top", Category::Navigation, Scope::Global,)
-             .bind( "e", Action::MoveDown, "go to end", Category::Navigation, Scope::Global,);
+            g.bind("g", Action::MoveUp, "go to top", Category::Navigation, Scope::Global)
+                .bind("e", Action::MoveDown, "go to end", Category::Navigation, Scope::Global);
         })
         .group("f", "file", |f| {
-            f.bind( "s", Action::Save, "save file", Category::General, Scope::Global,)
-             .bind( "o", Action::OpenFile, "open file", Category::General, Scope::Global,);
-        })
-        .bind( "<esc>", Action::Quit, "exit insert mode", Category::General, Scope::Insert,)
-        .bind( "<enter>", Action::Quit, "new line", Category::General, Scope::Insert,);
+            f.bind("s", Action::Save, "save file", Category::General, Scope::Global)
+                .bind("o", Action::OpenFile, "open file", Category::General, Scope::Global);
+        });
+
+    // Use .scope() for Insert scope
+    keymap.scope(Scope::Insert, |insert| {
+        insert
+            .bind("<esc>", Action::Quit, "exit insert mode", Category::General)
+            .bind("<enter>", Action::Quit, "new line", Category::General);
+    });
 
     keymap
 }

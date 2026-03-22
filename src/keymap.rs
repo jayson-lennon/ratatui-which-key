@@ -1,6 +1,6 @@
 use crate::{
-    Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry,
-    NodeResult, ScopeBuilder, parse_key_sequence,
+    parse_key_sequence, Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key,
+    KeyChild, KeyNode, LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder,
 };
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
@@ -555,6 +555,24 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         bindings(&mut builder);
         self
     }
+
+    pub fn category<F>(&mut self, category: C, bindings: F) -> &mut Self
+    where
+        F: FnOnce(&mut CategoryBuilder<'_, K, S, A, C>),
+    {
+        let mut builder = CategoryBuilder::new(self, category);
+        bindings(&mut builder);
+        self
+    }
+
+    pub fn scope_and_category<F>(&mut self, scope: S, category: C, bindings: F) -> &mut Self
+    where
+        F: FnOnce(&mut ScopeAndCategoryBuilder<'_, K, S, A, C>),
+    {
+        let mut builder = ScopeAndCategoryBuilder::new(self, scope, category);
+        bindings(&mut builder);
+        self
+    }
 }
 
 impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
@@ -566,8 +584,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CrosstermKey;
     use crate::test_utils::keymap_with_binding;
+    use crate::CrosstermKey;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {

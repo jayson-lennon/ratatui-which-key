@@ -49,6 +49,8 @@ mod state;
 mod test_utils;
 mod types;
 mod widget;
+mod category_builder;
+mod scope_and_category_builder;
 
 pub use group_builder::GroupBuilder;
 pub use key::parse_key_sequence;
@@ -60,6 +62,8 @@ pub use scope_builder::ScopeBuilder;
 pub use state::WhichKeyState;
 pub use types::{Binding, BindingGroup, DisplayBinding, NodeResult};
 pub use widget::{PopupPosition, WhichKey};
+pub use category_builder::CategoryBuilder;
+pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 
 #[cfg(feature = "crossterm")]
 pub use key::CrosstermKey;
