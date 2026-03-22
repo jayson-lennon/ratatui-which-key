@@ -42,20 +42,20 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
     keymap
-        .describe_prefix("<space>", "<leader>")
-        .describe_prefix("<space>q", "1")
-        .describe_prefix("<space>qw", "2")
+        .describe("<space>", "<leader>")
+        .describe("<space>q", "1")
+        .describe("<space>qw", "2")
         .bind("q", Action::Quit, "quit", Category::General, Scope::Global)
         .bind( "<leader>qwe", Action::MoveUp, "nested", Category::General, Scope::Global,)
         .bind( "?", Action::ToggleHelp, "show help", Category::General, Scope::Global,)
         .bind( "<F1>", Action::ToggleHelp, "show help", Category::General, Scope::Global,)
         .bind( "k", Action::MoveUp, "move up", Category::Navigation, Scope::Global,)
         .bind( "j", Action::MoveDown, "move down", Category::Navigation, Scope::Global,)
-        .describe("g", "goto", |g| {
+        .describe_prefix("g", "goto", |g| {
             g.bind( "g", Action::MoveUp, "go to top", Category::Navigation, Scope::Global,)
              .bind( "e", Action::MoveDown, "go to end", Category::Navigation, Scope::Global,);
         })
-        .describe("f", "file", |f| {
+        .describe_prefix("f", "file", |f| {
             f.bind( "s", Action::Save, "save file", Category::General, Scope::Global,)
              .bind( "o", Action::OpenFile, "open file", Category::General, Scope::Global,);
         })

@@ -1,6 +1,6 @@
 use crate::{
-    parse_key_sequence, Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild,
-    KeyNode, LeafEntry, NodeResult, ScopeBuilder,
+    Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry,
+    NodeResult, ScopeBuilder, parse_key_sequence,
 };
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
@@ -407,7 +407,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
-    pub fn describe_prefix(&mut self, prefix: &str, description: &'static str) -> &mut Self
+    pub fn describe(&mut self, prefix: &str, description: &'static str) -> &mut Self
     where
         K: Clone,
         S: Clone,
@@ -529,7 +529,12 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     ///          .bind("e", Action::GoEnd, "go to end", Navigation);
     /// });
     /// ```
-    pub fn describe<F>(&mut self, prefix: &str, description: &'static str, bindings: F) -> &mut Self
+    pub fn describe_prefix<F>(
+        &mut self,
+        prefix: &str,
+        description: &'static str,
+        bindings: F,
+    ) -> &mut Self
     where
         K: Clone,
         S: Clone,
@@ -1085,7 +1090,7 @@ mod tests {
     fn describe_prefix_creates_branch_at_path() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap.describe_prefix("g", "go commands");
+        keymap.describe("g", "go commands");
 
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
@@ -1115,7 +1120,7 @@ mod tests {
             TestCategory::Navigation,
             TestScope::Global,
         );
-        keymap.describe_prefix("g", "go commands");
+        keymap.describe("g", "go commands");
 
         let child = &keymap.bindings()[0];
         if let KeyNode::Branch { description, .. } = &child.node {
@@ -1129,7 +1134,7 @@ mod tests {
     fn describe_prefix_works_for_nested_prefixes() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap.describe_prefix("abc", "nested command");
+        keymap.describe("abc", "nested command");
 
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('a'));
@@ -1181,7 +1186,7 @@ mod tests {
             TestCategory::Navigation,
             TestScope::Global,
         );
-        keymap.describe_prefix("g", "go commands");
+        keymap.describe("g", "go commands");
 
         let child = &keymap.bindings()[0];
         assert!(child.node.is_branch());
@@ -1202,7 +1207,7 @@ mod tests {
     fn describe_prefix_and_bind_work_together() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap.describe_prefix("g", "go commands").bind(
+        keymap.describe("g", "go commands").bind(
             "gg",
             TestAction::Quit,
             "go to top",
@@ -1230,9 +1235,7 @@ mod tests {
     fn describe_prefix_returns_self_for_chaining() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap
-            .describe_prefix("g", "go")
-            .describe_prefix("d", "debug");
+        keymap.describe("g", "go").describe("d", "debug");
 
         assert_eq!(keymap.bindings().len(), 2);
     }
@@ -1241,7 +1244,7 @@ mod tests {
     fn describe_prefix_empty_string_does_nothing() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap.describe_prefix("", "empty");
+        keymap.describe("", "empty");
 
         assert!(keymap.bindings().is_empty());
     }
@@ -1295,7 +1298,7 @@ mod tests {
     fn describe_creates_group_with_description_and_bindings() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        keymap.describe("g", "goto", |b| {
+        keymap.describe_prefix("g", "goto", |b| {
             b.bind(
                 "g",
                 TestAction::Quit,
