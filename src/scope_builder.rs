@@ -36,6 +36,7 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
     use super::*;
     use crate::{CrosstermKey, KeyNode};
 

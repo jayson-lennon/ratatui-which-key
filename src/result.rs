@@ -40,6 +40,7 @@ impl<A> KeyResult<A> {
         }
     }
 
+    #[must_use]
     pub fn and_dismiss(self) -> Self {
         Self {
             dismiss: true,

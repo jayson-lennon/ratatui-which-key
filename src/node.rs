@@ -20,7 +20,7 @@ pub enum KeyNode<K: Key, S, A, C> {
 impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
     pub fn description(&self) -> &'static str {
         match self {
-            KeyNode::Leaf(entries) => entries.first().map(|e| e.description).unwrap_or(""),
+            KeyNode::Leaf(entries) => entries.first().map_or("", |e| e.description),
             KeyNode::Branch { description, .. } => description,
         }
     }

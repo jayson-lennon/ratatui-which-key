@@ -316,8 +316,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 .or_else(|| entries.first().map(|e| e.category.clone())),
             KeyNode::Branch { children, .. } => children
                 .iter()
-                .filter_map(|c| Self::find_category_in_children_recursive(&c.node, scope))
-                .next()
+                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope))
                 .or_else(|| {
                     children
                         .first()
@@ -340,8 +339,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 .map(|e| e.category.clone()),
             KeyNode::Branch { children, .. } => children
                 .iter()
-                .filter_map(|c| Self::find_category_in_children_recursive(&c.node, scope))
-                .next(),
+                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope)),
         }
     }
 
@@ -1346,9 +1344,10 @@ mod tests {
             panic!("expected leaf node for 'gg'");
         }
 
-        let node_ge = keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('e')]);
-        assert!(node_ge.is_some());
-        if let Some(KeyNode::Leaf(entries)) = node_ge {
+        let node_ge_result =
+            keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('e')]);
+        assert!(node_ge_result.is_some());
+        if let Some(KeyNode::Leaf(entries)) = node_ge_result {
             assert_eq!(entries[0].action, TestAction::Save);
             assert_eq!(entries[0].description, "go to end");
         } else {

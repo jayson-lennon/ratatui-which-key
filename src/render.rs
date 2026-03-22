@@ -27,10 +27,10 @@ pub fn render_popup<K, S, A, C>(
 
     let columns = build_columns(&groups, config.max_height);
 
-    let title = if !state.current_sequence.is_empty() {
-        format!(" {} ", state.format_path())
-    } else {
+    let title = if state.current_sequence.is_empty() {
         " Shortcuts ".to_string()
+    } else {
+        format!(" {} ", state.format_path())
     };
 
     let popup_area = calculate_popup_area(config, area, &columns, &title);
@@ -144,12 +144,11 @@ fn calculate_popup_area<K: Key>(
     let popup_height = config.max_height.min(frame_area.height.saturating_sub(2));
 
     let x = match config.position {
-        crate::PopupPosition::BottomLeft => 1,
+        crate::PopupPosition::BottomLeft | crate::PopupPosition::TopLeft => 1,
         crate::PopupPosition::BottomRight | crate::PopupPosition::TopRight => frame_area
             .width
             .saturating_sub(popup_width)
             .saturating_sub(1),
-        crate::PopupPosition::TopLeft => 1,
     };
 
     let y = match config.position {
@@ -211,7 +210,7 @@ fn render_column<K: Key>(
                 format!("{:>width$}", key_display, width = column_data.max_key_width),
                 config.key_style,
             );
-            let desc_span = Span::styled(format!(" {}", description), config.description_style);
+            let desc_span = Span::styled(format!(" {description}"), config.description_style);
             let line = Line::from(vec![key_span, desc_span]);
             let para = Paragraph::new(line);
             para.render(Rect::new(area.x, y, area.width, 1), buf);

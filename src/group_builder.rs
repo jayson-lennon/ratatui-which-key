@@ -1,4 +1,4 @@
-use crate::{parse_key_sequence, Key, Keymap};
+use crate::{Key, Keymap, parse_key_sequence};
 
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
@@ -73,6 +73,7 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
     use super::*;
     use crate::{CrosstermKey, KeyNode};
 

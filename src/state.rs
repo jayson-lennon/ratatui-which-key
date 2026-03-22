@@ -146,7 +146,7 @@ where
     pub fn format_path(&self) -> String {
         self.current_sequence
             .iter()
-            .map(|k| k.display())
+            .map(super::key::Key::display)
             .collect::<Vec<_>>()
             .join(" > ")
     }
@@ -154,6 +154,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(dead_code)]
     use super::*;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]

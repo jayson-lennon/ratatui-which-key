@@ -96,8 +96,8 @@ impl Key for CrosstermKey {
             CrosstermKey::End => "End".to_string(),
             CrosstermKey::PageUp => "PageUp".to_string(),
             CrosstermKey::PageDown => "PageDown".to_string(),
-            CrosstermKey::F(n) => format!("F{}", n),
-            CrosstermKey::Ctrl(c) => format!("<C-{}>", c),
+            CrosstermKey::F(n) => format!("F{n}"),
+            CrosstermKey::Ctrl(c) => format!("<C-{c}>"),
         }
     }
 
@@ -135,7 +135,7 @@ impl Key for CrosstermKey {
             "leader" | "space" => Some(CrosstermKey::Char(' ')),
             s if s.starts_with('f') && s.len() > 1 => {
                 let num: u8 = s[1..].parse().ok()?;
-                if num >= 1 && num <= 12 {
+                if (1..=12).contains(&num) {
                     Some(CrosstermKey::F(num))
                 } else {
                     None
@@ -175,6 +175,12 @@ impl From<crossterm::event::KeyCode> for CrosstermKey {
     }
 }
 
+/// Parses a key sequence string into a vector of keys.
+///
+/// # Panics
+///
+/// Panics if special character parsing fails when calling `chars.next().unwrap()`.
+/// This can occur if the iterator is empty after peeking a character.
 pub fn parse_key_sequence<K: Key>(s: &str) -> Vec<K> {
     let mut keys = Vec::new();
     let mut chars = s.chars().peekable();
