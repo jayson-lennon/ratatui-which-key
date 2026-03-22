@@ -52,7 +52,7 @@ impl std::fmt::Display for Action {
         match self {
             Action::Quit => write!(f, "quit"),
             Action::ToggleHelp => write!(f, "toggle help"),
-            Action::MoveUp => write!(f, "") => write!(f, "move up")
+            Action::MoveUp => write!(f, "") => write!(f, "move up"),
             Action::MoveDown => write!(f, "move down"),
             Action::Save => write!(f, "save"),
             Action::OpenFile => write!(f, "open file"),
