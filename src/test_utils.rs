@@ -105,7 +105,7 @@ use crate::{CrosstermKey, KeyNode};
 
 #[cfg(test)]
 pub fn assert_leaf_entry<K, S, A, C>(
-    node: &Option<KeyNode<K, S, A, C>>,
+    node: Option<&KeyNode<K, S, A, C>>,
     expected_action: A,
     expected_scope: S,
 ) where
@@ -114,7 +114,7 @@ pub fn assert_leaf_entry<K, S, A, C>(
     A: Clone + PartialEq + std::fmt::Debug,
     C: Clone,
 {
-    let node = node.as_ref().expect("Expected Some node, got None");
+    let node = node.expect("Expected Some node, got None");
     let entries = match node {
         KeyNode::Leaf(entries) => entries,
         KeyNode::Branch { .. } => panic!("Expected Leaf node, got Branch"),
@@ -160,11 +160,11 @@ pub fn assert_branch_at_path<K, S, A, C>(
 }
 
 #[cfg(test)]
-pub fn assert_nth_child_is_branch<'a, K, S, A, C>(
-    parent: &'a KeyNode<K, S, A, C>,
+pub fn assert_nth_child_is_branch<K, S, A, C>(
+    parent: &KeyNode<K, S, A, C>,
     index: usize,
     expected_key: K,
-) -> &'a KeyNode<K, S, A, C>
+) -> &KeyNode<K, S, A, C>
 where
     K: crate::Key + PartialEq + std::fmt::Debug,
     S: Clone,
@@ -184,13 +184,11 @@ where
     let child = &children[index];
     assert_eq!(
         child.key, expected_key,
-        "Child key mismatch at index {}",
-        index
+        "Child key mismatch at index {index}",
     );
     assert!(
         child.node.is_branch(),
-        "Expected child at index {} to be a Branch",
-        index
+        "Expected child at index {index} to be a Branch",
     );
     &child.node
 }
@@ -221,8 +219,7 @@ pub fn assert_nth_child_is_leaf<K, S, A, C>(
     let child = &children[index];
     assert_eq!(
         child.key, expected_key,
-        "Child key mismatch at index {}",
-        index
+        "Child key mismatch at index {index}",
     );
     match &child.node {
         KeyNode::Leaf(entries) => {
@@ -235,7 +232,7 @@ pub fn assert_nth_child_is_leaf<K, S, A, C>(
             assert_eq!(entries[0].action, expected_action, "Action mismatch");
             assert_eq!(entries[0].scope, expected_scope, "Scope mismatch");
         }
-        KeyNode::Branch { .. } => panic!("Expected Leaf at index {}, got Branch", index),
+        KeyNode::Branch { .. } => panic!("Expected Leaf at index {index}, got Branch"),
     }
 }
 
