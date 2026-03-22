@@ -29,6 +29,11 @@ enum Action {
     Save,
     OpenFile,
     Delete,
+    EnterInsert,
+    EnterNormal,
+    NewLine,
+    GoLeft,
+    GoRight,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,47 +46,31 @@ enum Scope {
 fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
-    // Describe group prefixes
-    keymap
-        .describe_group("<space>", "<leader>")
-        .describe_group("<leader>q", "1")
-        .describe_group("<leader>qw", "2");
-
-    // Use .scope_and_category() for Global + General bindings
-    keymap.scope_and_category(Scope::Global, Category::General, |general| {
-        general
-            .bind("q", Action::Quit, "quit")
+    // Normal mode: .scope_and_category() for General bindings
+    keymap.scope_and_category(Scope::Global, Category::General, |g| {
+        g.bind("q", Action::Quit, "quit")
             .bind("?", Action::ToggleHelp, "show help")
-            .bind("<F1>", Action::ToggleHelp, "show help")
-            .bind("<leader>qwe", Action::MoveUp, "nested");
+            .bind("i", Action::EnterInsert, "enter insert mode");
     });
 
-    // Use .scope_and_category() for Global + Navigation bindings
-    keymap.scope_and_category(Scope::Global, Category::Navigation, |nav| {
-        nav.bind("k", Action::MoveUp, "move up").bind("j", Action::MoveDown, "move down");
+    // Normal mode: .scope_and_category() for Navigation bindings
+    keymap.scope_and_category(Scope::Global, Category::Navigation, |g| {
+        g.bind("k", Action::MoveUp, "move up")
+            .bind("j", Action::MoveDown, "move down")
+            .bind("h", Action::GoLeft, "go left")
+            .bind("l", Action::GoRight, "go right");
     });
 
-    // Use .scope() for Global scope with explicit categories per bind
-    keymap.scope(Scope::Global, |global| {
-        global.bind("h", Action::MoveUp, "go left", Category::Navigation);
-    });
-
-    // Use .group() for prefix-based organization (keeping group for nested bindings)
-    keymap
-        .group("g", "goto", |g| {
-            g.bind("g", Action::MoveUp, "go to top", Category::Navigation, Scope::Global)
-                .bind("e", Action::MoveDown, "go to end", Category::Navigation, Scope::Global);
-        })
-        .group("f", "file", |f| {
-            f.bind("s", Action::Save, "save file", Category::General, Scope::Global)
-                .bind("o", Action::OpenFile, "open file", Category::General, Scope::Global);
-        });
-
-    // Use .scope() for Insert scope
+    // Insert mode: .scope() with explicit categories - bindings share scope but differ in category
     keymap.scope(Scope::Insert, |insert| {
         insert
-            .bind("<esc>", Action::Quit, "exit insert mode", Category::General)
-            .bind("<enter>", Action::Quit, "new line", Category::General);
+            .bind("<esc>", Action::EnterNormal, "exit insert mode", Category::General)
+            .bind("x", Action::Delete, "delete char", Category::General)
+            .bind("<enter>", Action::NewLine, "insert newline", Category::General)
+            .bind("h", Action::GoLeft, "move left", Category::Navigation)
+            .bind("l", Action::GoRight, "move right", Category::Navigation)
+            .bind("k", Action::MoveUp, "move up", Category::Navigation)
+            .bind("j", Action::MoveDown, "move down", Category::Navigation);
     });
 
     keymap
@@ -117,15 +106,26 @@ impl App {
             }
             Action::MoveUp => {
                 self.position = self.position.saturating_sub(1);
-                format!("Moved up to position {}", self.position)
+                format!("Moved up to {}", self.position)
             }
             Action::MoveDown => {
                 self.position = self.position.saturating_add(1);
-                format!("Moved down to position {}", self.position)
+                format!("Moved down to {}", self.position)
             }
+            Action::GoLeft => format!("Moved left (pos={})", self.position),
+            Action::GoRight => format!("Moved right (pos={})", self.position),
             Action::Save => "File saved".to_string(),
             Action::OpenFile => "File opened".to_string(),
-            Action::Delete => "Item deleted".to_string(),
+            Action::Delete => format!("Deleted at position {}", self.position),
+            Action::EnterInsert => {
+                self.which_key_state.set_scope(Scope::Insert);
+                "Entered Insert mode (press <esc> to exit)".to_string()
+            }
+            Action::EnterNormal => {
+                self.which_key_state.set_scope(Scope::Global);
+                "Returned to Normal mode".to_string()
+            }
+            Action::NewLine => "New line inserted".to_string(),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {
@@ -162,8 +162,12 @@ fn ui(frame: &mut Frame, app: &mut App) {
         lines.push(Line::raw(format!("  {msg}")));
     }
     lines.push(Line::raw(""));
+    let mode = match app.which_key_state.scope() {
+        Scope::Global => "Normal",
+        Scope::Insert => "Insert",
+    };
     lines.push(Line::styled(
-        "Press ? to show keybindings, q to quit",
+        format!("Mode: {mode} | Press ? to show keybindings, q to quit"),
         Style::default().fg(Color::DarkGray),
     ));
 
