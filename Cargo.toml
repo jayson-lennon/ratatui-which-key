@@ -3,7 +3,11 @@ name = "ratatui-which-key"
 edition = "2024"
 version = "0.1.0"
 description = "A which-key popup widget for ratatui applications"
-license = "AGPLv3"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/jayson-lennon/ratatui-which-key"
+keywords = ["ratatui", "input", "tui", "terminal"]
+categories = ["command-line-interface"]
+exclude = ["/media"]
 
 [features]
 default = ["crossterm"]

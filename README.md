@@ -158,4 +158,4 @@ There is a [sample application](examples/demo.rs) that you can run with `cargo r
 
 ## License
 
-AGPLv3
+[AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.en.html)
