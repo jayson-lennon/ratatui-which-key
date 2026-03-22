@@ -8,7 +8,6 @@ use crate::{Keymap, WhichKeyState};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestKey {
     Char(char),
-    Esc,
     Backspace,
 }
 
@@ -17,13 +16,8 @@ impl Key for TestKey {
     fn display(&self) -> String {
         match self {
             TestKey::Char(c) => c.to_string(),
-            TestKey::Esc => "Esc".to_string(),
             TestKey::Backspace => "BS".to_string(),
         }
-    }
-
-    fn is_escape(&self) -> bool {
-        matches!(self, TestKey::Esc)
     }
 
     fn is_backspace(&self) -> bool {

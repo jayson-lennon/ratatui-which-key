@@ -2,7 +2,6 @@ use std::hash::Hash;
 
 pub trait Key: Clone + PartialEq + Eq + Send + Sync + 'static {
     fn display(&self) -> String;
-    fn is_escape(&self) -> bool;
     fn is_backspace(&self) -> bool;
 
     fn from_char(_c: char) -> Option<Self>
@@ -99,10 +98,6 @@ impl Key for CrosstermKey {
             CrosstermKey::F(n) => format!("F{n}"),
             CrosstermKey::Ctrl(c) => format!("<C-{c}>"),
         }
-    }
-
-    fn is_escape(&self) -> bool {
-        matches!(self, CrosstermKey::Esc)
     }
 
     fn is_backspace(&self) -> bool {
@@ -285,28 +280,6 @@ mod tests {
             // Then it returns the expected format.
             assert_eq!(CrosstermKey::Ctrl('x').display(), "<C-x>");
             assert_eq!(CrosstermKey::Ctrl('c').display(), "<C-c>");
-        }
-
-        #[test]
-        fn is_escape_returns_true_for_esc() {
-            // Given an escape key.
-            let key = CrosstermKey::Esc;
-
-            // When checking if it's an escape key.
-            let result = key.is_escape();
-
-            // Then it returns true.
-            assert!(result);
-        }
-
-        #[test]
-        fn is_escape_returns_false_for_other_keys() {
-            // Given non-escape keys.
-            // When checking if each is an escape key.
-            // Then they all return false.
-            assert!(!CrosstermKey::Char('a').is_escape());
-            assert!(!CrosstermKey::Enter.is_escape());
-            assert!(!CrosstermKey::Tab.is_escape());
         }
 
         #[test]

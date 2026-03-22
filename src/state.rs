@@ -89,11 +89,6 @@ where
     /// Returns a `KeyResult` indicating whether the key was consumed,
     /// an action should be dispatched, or the popup should be dismissed.
     pub fn handle_key(&mut self, key: K) -> KeyResult<A> {
-        if key.is_escape() {
-            self.dismiss();
-            return KeyResult { action: None };
-        }
-
         if key.is_backspace() {
             self.current_sequence.pop();
             if self.current_sequence.is_empty() {
@@ -186,7 +181,6 @@ mod tests {
     #[derive(Debug, Clone, PartialEq, Eq)]
     enum TestKey {
         Char(char),
-        Esc,
         Backspace,
     }
 
@@ -194,13 +188,8 @@ mod tests {
         fn display(&self) -> String {
             match self {
                 TestKey::Char(c) => c.to_string(),
-                TestKey::Esc => "Esc".to_string(),
                 TestKey::Backspace => "BS".to_string(),
             }
-        }
-
-        fn is_escape(&self) -> bool {
-            matches!(self, TestKey::Esc)
         }
 
         fn is_backspace(&self) -> bool {
