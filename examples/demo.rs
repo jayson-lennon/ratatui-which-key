@@ -1,14 +1,14 @@
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
-    Frame, Terminal,
 };
 use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
 use std::io;
@@ -45,17 +45,17 @@ enum Action {
 impl std::fmt::Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Action::Quit => write!(f, "Quit"),
-            Action::ToggleHelp => write!(f, "ToggleHelp"),
-            Action::GoTop => write!(f, "GoTop"),
-            Action::GoEnd => write!(f, "GoEnd"),
-            Action::GoDown => write!(f, "GoDown"),
-            Action::EnterInsert => write!(f, "EnterInsert"),
-            Action::EnterNormal => write!(f, "EnterNormal"),
-            Action::Append => write!(f, "Append"),
-            Action::Delete => write!(f, "Delete"),
-            Action::NewLineBelow => write!(f, "NewLineBelow"),
-            Action::NewLineAbove => write!(f, "NewLineAbove"),
+            Action::Quit => write!(f, "quit"),
+            Action::ToggleHelp => write!(f, "toggle help"),
+            Action::GoTop => write!(f, "go top"),
+            Action::GoEnd => write!(f, "go end"),
+            Action::GoDown => write!(f, "go down"),
+            Action::EnterInsert => write!(f, "insert mode"),
+            Action::EnterNormal => write!(f, "normal mode"),
+            Action::Append => write!(f, "append"),
+            Action::Delete => write!(f, "delete"),
+            Action::NewLineBelow => write!(f, "new line below"),
+            Action::NewLineAbove => write!(f, "new line above"),
         }
     }
 }

@@ -4,78 +4,156 @@ A which-key popup widget for [ratatui](https://github.com/ratatui/ratatui) appli
 
 Displays available keybindings in a popup when the user presses a prefix key.
 
+![media/screenshot-1.png]
+![media/screenshot-2.png]
+
 ## How It Works
 
-`ratatui-which-key` requires three data types be defined in your application:
+`ratatui-which-key` requires three data types be defined in your application.
 
-- _scopes_ - this is similar to a focused element
-- _actions_ - things that you want your application to do
-- _categories_ - group individual bindings. This is for display purposes.
+### Scopes
 
-You'll set those up, store a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application, and set up keybinds.
-
-Keybinds require all of the above types, along with a sequence:
+The _scope_ is what part of your application is currently "in focus":
 
 ```rust
-let mut keymap = Keymap::new();
-keymap
-    .describe("<space>", "<leader>")
-    .describe("<space>q", "1")
-    .describe("<space>qw", "2")
-    .bind("q", Action::Quit, "quit", Category::General, Scope::Global)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Scope {
+    Global,
+    TextInputBox,
+    SearchPanel,
+    // ....
+}
+
+// When changing focus to another pane/window/etc:
+app.which_key.set_scope(Scope::TextInputBox)
 ```
 
-Key events are sent to `ratatui-which-key` which then uses
+### Actions
 
-## Example Usage
+`ratatui-which-key` returns an `Action` when a keybind is triggered:
 
 ```rust
-use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Scope { Global, Insert }
-
-#[derive(Clone, Copy)]
-enum Action { Quit, Save, Open }
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Category { General, File }
-
-// Build keymap
-let mut keymap = Keymap::new();
-keymap
-    .describe("<space>", "<leader>")
-    .bind("q", Action::Quit, "quit", Category::General, Scope::Global)
-    .describe_prefix("f", "file", |f| {
-        f.bind("s", Action::Save, "save", Category::File, Scope::Global)
-         .bind("o", Action::Open, "open", Category::File, Scope::Global);
-    });
-
-// Create state
-let mut state = WhichKeyState::new(keymap, Scope::Global);
-
-// In event loop
-let result = state.handle_key(crossterm_key);
-if let Some(action) = result.action {
-    // dispatch action
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Action {
+    Quit,
+    ToggleHelp,
+    MoveUp,
+    MoveDown,
+    Save,
+    OpenFile,
+    SearchFiles,
+    SearchBuffers,
+    // ...
 }
 
-// In render
-if state.active {
-    WhichKey::new()
-        .max_height(15)
-        .render(frame.buffer_mut(), &mut state);
+// Must implement Display to show descriptions in the which-key popup.
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Action::Quit => write!(f, "quit"),
+            Action::ToggleHelp => write!(f, "toggle help"),
+            Action::MoveUp => write!(f, "") => write!(f, "move up")
+            Action::MoveDown => write!(f, "move down"),
+            Action::Save => write!(f, "save"),
+            Action::OpenFile => write!(f, "open file"),
+            Action::SearchFiles => write!(f, "search files"),
+            Action::SearchBuffers => write!(f, "search buffers"),
+        }
+    }
+}
+
+// In your input handler:
+if let Some(action) = app.which_key.handle_key(key).action {
+    match action {
+        Action::Quit => // ...
+        Action::ToggleHelp => app.which_key.toggle(),
+        Action::MoveUp => // ...
+        Action::MoveDown = // ...
+        Action::Save = // ...
+        Action::OpenFile = // ...
+        Action::SearchFiles = // ...
+        Action::SearchBuffers = // ...
+    }
 }
 ```
 
-## Features
+### Categories
 
-- **Tree-based keybindings** with prefix sequences (e.g., `<space>fs` for "file save")
-- **Scope-based modes** (e.g., Global, Insert) with different bindings per scope
-- **Customizable popup** with position, max height, and styling options
-- **CrosstermKey** built-in for immediate use with crossterm-based terminals
-- **Extensible** via the `Key` trait for custom key types
+The `ratatui-which-key` popup displays keybinds sorted by category:
+
+```rust
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Category {
+    General,
+    Navigation,
+    Search,
+    // ...
+}
+```
+
+## Keymap Configuration
+
+You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`:
+
+```rust
+struct App {
+    which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+}
+
+let mut keymap = Keymap::new();
+keymap
+    // "describe_group" is a way to set the name of a group explicitly
+    .describe_group("<space>", "<leader>")
+    // keys can be bound individually
+    .bind("?", Action::ToggleHelp, Category::General, Scope::Global)
+    .bind("j", Action::MoveDown, Category::Navigation, Scope::Global)
+    // control keys supported
+    .bind("<c-c>", Action::Quit, Category::General, Scope::Global)
+    // f-keys supported
+    .bind("<F1>", Action::ToggleHelp, Category::General, Scope::Global)
+    // sequences supported
+    .bind("<leader>w", Action::Save, Category::General, Scope::Global)
+    // sequences can start with any key
+    .bind("gof", Action::OpenFile, Category::General, Scope::Global)
+    // group configuration by prefix. No need to use `describe_group` when using this method.
+    .group("s", "search", |g| {
+        // bind to `sf`
+        g.bind("f", Action::SearchFiles, Category::General, Scope::SearchPanel)
+        // bind to `sb`
+         .bind("b", Action::SearchBuffers, Category::General, Scope::SearchPanel);
+     })
+     // automated scope association. No need to specify scope for each binding.
+     .scope(Scope::Global, |global| {
+         global
+             .bind("?", Action::ToggleHelp, Category::General)
+             .bind("j", Action::MoveDown, Category::Navigation);
+     })
+     // automated category association. No need to specify category for each binding.
+     .category(Category::Navigation, |nav| {
+         nav
+             .bind("k", Action::MoveUp, Scope::Global)
+             .bind("j", Action::MoveDown, Scope::Global);
+     })
+     // automated scope + category association.
+     .scope_and_category(Scope::Global, Category::Navigation, |g| {
+        g.bind("<leader>gg", Action::MoveUp)
+         .bind("<leader>gd", Action::MoveDown);
+     });
+
+// Create new state with a keymap and initial scope.
+app.which_key_state = WhichKeyState::new(keymap, Scope::Global);
+```
+
+Finally, to render:
+
+```rust
+// (in your top-level render function)
+if app.which_key.active {
+    let widget = WhichKey::new().border_style(Style::default().fg(Color::Green));
+    widget.render(frame.buffer_mut(), &mut app.which_key);
+}
+```
 
 ## License
 
-MIT
+AGPLv3

@@ -1,6 +1,6 @@
 use crate::{
-    parse_key_sequence, Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key,
-    KeyChild, KeyNode, LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder,
+    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
+    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
 };
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
@@ -548,8 +548,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::keymap_with_binding;
     use crate::CrosstermKey;
+    use crate::test_utils::keymap_with_binding;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {
@@ -593,7 +593,7 @@ mod tests {
                         e.scope.clone(),
                         e.action.clone(),
                         e.category.clone(),
-                        e.description.to_string(),
+                        e.description.clone(),
                     )
                 })
                 .collect()
