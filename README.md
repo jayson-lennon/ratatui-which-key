@@ -1,11 +1,11 @@
 # ratatui-which-key
 
-A which-key popup widget for [ratatui](https://github.com/ratatui/ratatui) applications, inspired by [folke's which-key.nvim](https://github.com/folke/which-key.nvim).
-
-Displays available keybindings in a popup when the user presses a prefix key.
+A which-key popup widget + input handler for [ratatui](https://github.com/ratatui/ratatui) applications, inspired by [folke's which-key.nvim](https://github.com/folke/which-key.nvim).
 
 ![screenshot 1](media/screenshot-1.png)
 ![screenshot 2](media/screenshot-2.png)
+
+All input can be routed to `ratatui-which-key` and it will return an application-specific action to perform based on the configured keybinds.
 
 ## How It Works
 
