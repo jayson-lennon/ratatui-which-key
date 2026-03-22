@@ -141,7 +141,7 @@ keymap
      });
 
 // Create new state with a keymap and initial scope.
-app.which_key_state = WhichKeyState::new(keymap, Scope::Global);
+app.which_key = WhichKeyState::new(keymap, Scope::Global);
 ```
 
 Finally, to render:
