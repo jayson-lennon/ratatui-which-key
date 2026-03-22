@@ -4,6 +4,7 @@ use crate::{Key, Keymap};
 ///
 /// Provides convenience methods that default the category, reducing
 /// boilerplate when defining groups of related keybindings.
+#[derive(Debug)]
 pub struct CategoryBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
     category: C,

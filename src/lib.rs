@@ -22,7 +22,7 @@
 //!
 //! // Build the keymap
 //! let mut keymap: Keymap<CrosstermKey, Scope, Action> = Keymap::new();
-//! keymap.bind("q", Action::Quit, "quit", Scope::Global);
+//! keymap.bind("q", Action::Quit, Scope::Global);
 //!
 //! // Create state
 //! let mut state = WhichKeyState::new(keymap, Scope::Global);
@@ -34,36 +34,36 @@
 //! }
 //!
 //! // When rendering
-//! let widget = WhichKey::new().max_height(15);
+//! let widget = WhichKey::new();
 //! widget.render(buffer, &mut state);
 //! ```
 
+mod category_builder;
 mod group_builder;
 mod key;
 mod keymap;
 mod node;
 mod render;
 mod result;
+mod scope_and_category_builder;
 mod scope_builder;
 mod state;
 mod test_utils;
 mod types;
 mod widget;
-mod category_builder;
-mod scope_and_category_builder;
 
+pub use category_builder::CategoryBuilder;
 pub use group_builder::GroupBuilder;
-pub use key::parse_key_sequence;
 pub use key::Key;
+pub use key::parse_key_sequence;
 pub use keymap::Keymap;
 pub use node::{KeyChild, KeyNode, LeafBinding, LeafEntry};
 pub use result::KeyResult;
+pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 pub use scope_builder::ScopeBuilder;
 pub use state::WhichKeyState;
 pub use types::{Binding, BindingGroup, DisplayBinding, NodeResult};
 pub use widget::{PopupPosition, WhichKey};
-pub use category_builder::CategoryBuilder;
-pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 
 #[cfg(feature = "crossterm")]
 pub use key::CrosstermKey;

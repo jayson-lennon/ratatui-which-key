@@ -13,6 +13,7 @@ use crate::{
 /// * `S` - The scope type for context-sensitive bindings
 /// * `A` - The action type triggered by key sequences
 /// * `C` - The category type for grouping bindings
+#[derive(Clone, Debug)]
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
     leader_key: K,

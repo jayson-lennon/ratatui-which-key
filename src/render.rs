@@ -54,6 +54,7 @@ pub fn render_popup<K, S, A, C>(
 }
 
 /// Column data for rendering.
+#[derive(Debug, Clone)]
 struct ColumnData<K: Key> {
     groups: Vec<(String, Vec<(K, String)>)>,
     max_key_width: usize,

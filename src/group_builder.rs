@@ -1,6 +1,7 @@
 use crate::{Key, Keymap, parse_key_sequence};
 
 /// A builder for binding key sequences under a shared prefix.
+#[derive(Debug)]
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
     prefix: Vec<K>,

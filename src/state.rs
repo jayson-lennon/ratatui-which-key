@@ -4,6 +4,7 @@ use crate::{BindingGroup, Key, KeyResult, Keymap, NodeResult};
 ///
 /// Holds all runtime data including the keymap, current scope,
 /// and pending key sequence.
+#[derive(Debug, Clone)]
 pub struct WhichKeyState<K, S, A, C>
 where
     K: Key,

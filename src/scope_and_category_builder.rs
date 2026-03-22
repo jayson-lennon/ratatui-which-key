@@ -4,6 +4,7 @@ use crate::{Key, Keymap};
 ///
 /// This builder simplifies repetitive bindings by storing a scope and category
 /// that are automatically applied to each [`bind`](Self::bind) call.
+#[derive(Debug)]
 pub struct ScopeAndCategoryBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
     scope: S,
