@@ -55,7 +55,7 @@ apply-license:
        echo "Processing .$ext files..."
 
        # Find files with the extension, excluding node_modules or hidden git folders
-       find . -type f -name "*.$ext" -not -path "*/.*" -not -path "*node_modules*" | while read -r file; do
+       find . -type f -name "*.$ext" -not -path "*/.*" -not -path "*node_modules*" -not -path "./target/*" | while read -r file; do
 
            # Check if "Copyright" already exists in the first 5 lines
            if head -n 5 "$file" | grep -iq "Copyright"; then
