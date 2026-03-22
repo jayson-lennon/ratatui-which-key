@@ -3,7 +3,7 @@ name = "ratatui-which-key"
 edition = "2024"
 version = "0.1.0"
 description = "A which-key popup widget for ratatui applications"
-license = "MIT"
+license = "AGPLv3"
 
 [features]
 default = ["crossterm"]
