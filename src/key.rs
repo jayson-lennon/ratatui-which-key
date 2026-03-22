@@ -216,12 +216,21 @@ mod tests {
 
         #[test]
         fn display_returns_space_for_space_char() {
+            // Given a space character key.
             let key = CrosstermKey::Char(' ');
-            assert_eq!(key.display(), "Space");
+
+            // When displaying the key.
+            let display = key.display();
+
+            // Then it returns "Space".
+            assert_eq!(display, "Space");
         }
 
         #[test]
         fn display_returns_char_for_regular_chars() {
+            // Given regular character keys.
+            // When displaying each character.
+            // Then it returns the character itself.
             assert_eq!(CrosstermKey::Char('a').display(), "a");
             assert_eq!(CrosstermKey::Char('Z').display(), "Z");
             assert_eq!(CrosstermKey::Char('1').display(), "1");
@@ -229,6 +238,9 @@ mod tests {
 
         #[test]
         fn display_returns_special_key_names() {
+            // Given special key variants.
+            // When displaying each special key.
+            // Then it returns the expected name.
             assert_eq!(CrosstermKey::Tab.display(), "Tab");
             assert_eq!(CrosstermKey::Enter.display(), "Enter");
             assert_eq!(CrosstermKey::Backspace.display(), "Backspace");
@@ -241,6 +253,9 @@ mod tests {
 
         #[test]
         fn display_returns_arrows() {
+            // Given arrow key variants.
+            // When displaying each arrow key.
+            // Then it returns the expected arrow symbol.
             assert_eq!(CrosstermKey::Up.display(), "↑");
             assert_eq!(CrosstermKey::Down.display(), "↓");
             assert_eq!(CrosstermKey::Left.display(), "←");
@@ -249,23 +264,39 @@ mod tests {
 
         #[test]
         fn display_returns_function_keys() {
+            // Given function key variants.
+            // When displaying each function key.
+            // Then it returns the expected F key name.
             assert_eq!(CrosstermKey::F(1).display(), "F1");
             assert_eq!(CrosstermKey::F(12).display(), "F12");
         }
 
         #[test]
         fn display_returns_ctrl_combinations() {
+            // Given ctrl key combinations.
+            // When displaying each ctrl combination.
+            // Then it returns the expected format.
             assert_eq!(CrosstermKey::Ctrl('x').display(), "<C-x>");
             assert_eq!(CrosstermKey::Ctrl('c').display(), "<C-c>");
         }
 
         #[test]
         fn is_escape_returns_true_for_esc() {
-            assert!(CrosstermKey::Esc.is_escape());
+            // Given an escape key.
+            let key = CrosstermKey::Esc;
+
+            // When checking if it's an escape key.
+            let result = key.is_escape();
+
+            // Then it returns true.
+            assert!(result);
         }
 
         #[test]
         fn is_escape_returns_false_for_other_keys() {
+            // Given non-escape keys.
+            // When checking if each is an escape key.
+            // Then they all return false.
             assert!(!CrosstermKey::Char('a').is_escape());
             assert!(!CrosstermKey::Enter.is_escape());
             assert!(!CrosstermKey::Tab.is_escape());
@@ -273,29 +304,48 @@ mod tests {
 
         #[test]
         fn space_returns_space_char() {
-            assert_eq!(CrosstermKey::space(), CrosstermKey::Char(' '));
+            // Given the space static method is called.
+            let key = CrosstermKey::space();
+
+            // Then it returns a space character key.
+            assert_eq!(key, CrosstermKey::Char(' '));
         }
 
         #[test]
         fn from_keycode_converts_char() {
+            // Given a character key code without modifiers.
             use crossterm::event::{KeyCode, KeyModifiers};
+            let code = KeyCode::Char('a');
+            let modifiers = KeyModifiers::empty();
 
-            let key = CrosstermKey::from_keycode(KeyCode::Char('a'), KeyModifiers::empty());
+            // When converting from keycode.
+            let key = CrosstermKey::from_keycode(code, modifiers);
+
+            // Then it returns the expected character key.
             assert_eq!(key, Some(CrosstermKey::Char('a')));
         }
 
         #[test]
         fn from_keycode_converts_ctrl_char() {
+            // Given a character key code with control modifier.
             use crossterm::event::{KeyCode, KeyModifiers};
+            let code = KeyCode::Char('x');
+            let modifiers = KeyModifiers::CONTROL;
 
-            let key = CrosstermKey::from_keycode(KeyCode::Char('x'), KeyModifiers::CONTROL);
+            // When converting from keycode.
+            let key = CrosstermKey::from_keycode(code, modifiers);
+
+            // Then it returns the expected ctrl key.
             assert_eq!(key, Some(CrosstermKey::Ctrl('x')));
         }
 
         #[test]
         fn from_keycode_converts_special_keys() {
+            // Given special key codes.
             use crossterm::event::{KeyCode, KeyModifiers};
 
+            // When converting from keycode.
+            // Then each returns the expected special key variant.
             assert_eq!(
                 CrosstermKey::from_keycode(KeyCode::Tab, KeyModifiers::empty()),
                 Some(CrosstermKey::Tab)
@@ -316,8 +366,11 @@ mod tests {
 
         #[test]
         fn from_keycode_converts_arrow_keys() {
+            // Given arrow key codes.
             use crossterm::event::{KeyCode, KeyModifiers};
 
+            // When converting from keycode.
+            // Then each returns the expected arrow key variant.
             assert_eq!(
                 CrosstermKey::from_keycode(KeyCode::Up, KeyModifiers::empty()),
                 Some(CrosstermKey::Up)
@@ -338,8 +391,11 @@ mod tests {
 
         #[test]
         fn from_keycode_converts_function_keys() {
+            // Given function key codes.
             use crossterm::event::{KeyCode, KeyModifiers};
 
+            // When converting from keycode.
+            // Then each returns the expected function key variant.
             assert_eq!(
                 CrosstermKey::from_keycode(KeyCode::F(1), KeyModifiers::empty()),
                 Some(CrosstermKey::F(1))
@@ -352,8 +408,11 @@ mod tests {
 
         #[test]
         fn from_keycode_converts_navigation_keys() {
+            // Given navigation key codes.
             use crossterm::event::{KeyCode, KeyModifiers};
 
+            // When converting from keycode.
+            // Then each returns the expected navigation key variant.
             assert_eq!(
                 CrosstermKey::from_keycode(KeyCode::Home, KeyModifiers::empty()),
                 Some(CrosstermKey::Home)
@@ -374,14 +433,23 @@ mod tests {
 
         #[test]
         fn from_keycode_ctrl_normalizes_to_lowercase() {
+            // Given an uppercase character with control modifier.
             use crossterm::event::{KeyCode, KeyModifiers};
+            let code = KeyCode::Char('X');
+            let modifiers = KeyModifiers::CONTROL;
 
-            let key = CrosstermKey::from_keycode(KeyCode::Char('X'), KeyModifiers::CONTROL);
+            // When converting from keycode.
+            let key = CrosstermKey::from_keycode(code, modifiers);
+
+            // Then it returns the lowercase ctrl key.
             assert_eq!(key, Some(CrosstermKey::Ctrl('x')));
         }
 
         #[test]
         fn from_special_name_parses_tab() {
+            // Given tab as the special name.
+            // When parsing from special name.
+            // Then it returns the Tab variant (case insensitive).
             assert_eq!(
                 CrosstermKey::from_special_name("tab"),
                 Some(CrosstermKey::Tab)
@@ -394,6 +462,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_enter() {
+            // Given "enter" as the special name.
+            // When parsing from special name.
+            // Then it returns the Enter variant.
             assert_eq!(
                 CrosstermKey::from_special_name("enter"),
                 Some(CrosstermKey::Enter)
@@ -402,6 +473,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_backspace() {
+            // Given "bs" and "backspace" as special names.
+            // When parsing from special name.
+            // Then each returns the Backspace variant.
             assert_eq!(
                 CrosstermKey::from_special_name("bs"),
                 Some(CrosstermKey::Backspace)
@@ -414,6 +488,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_escape() {
+            // Given "esc" and "escape" as special names.
+            // When parsing from special name.
+            // Then each returns the Esc variant.
             assert_eq!(
                 CrosstermKey::from_special_name("esc"),
                 Some(CrosstermKey::Esc)
@@ -426,6 +503,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_arrow_keys() {
+            // Given arrow key names as special names.
+            // When parsing from special name.
+            // Then each returns the expected arrow key variant.
             assert_eq!(
                 CrosstermKey::from_special_name("up"),
                 Some(CrosstermKey::Up)
@@ -446,6 +526,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_navigation_keys() {
+            // Given "home" and "end" as special names.
+            // When parsing from special name.
+            // Then each returns the expected navigation key variant.
             assert_eq!(
                 CrosstermKey::from_special_name("home"),
                 Some(CrosstermKey::Home)
@@ -458,6 +541,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_page_keys() {
+            // Given page key names as special names.
+            // When parsing from special name.
+            // Then each returns the expected page key variant.
             assert_eq!(
                 CrosstermKey::from_special_name("pgup"),
                 Some(CrosstermKey::PageUp)
@@ -478,6 +564,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_function_keys() {
+            // Given function key names as special names.
+            // When parsing from special name.
+            // Then valid names return the expected function key, invalid names return None.
             assert_eq!(
                 CrosstermKey::from_special_name("f1"),
                 Some(CrosstermKey::F(1))
@@ -492,6 +581,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_leader_and_space() {
+            // Given "leader" and "space" as special names.
+            // When parsing from special name.
+            // Then each returns a space character key.
             assert_eq!(
                 CrosstermKey::from_special_name("leader"),
                 Some(CrosstermKey::Char(' '))
@@ -504,6 +596,9 @@ mod tests {
 
         #[test]
         fn from_special_name_parses_ctrl_keys() {
+            // Given ctrl key names as special names.
+            // When parsing from special name.
+            // Then each returns the expected ctrl key (case insensitive).
             assert_eq!(
                 CrosstermKey::from_special_name("c-x"),
                 Some(CrosstermKey::Ctrl('x'))
@@ -520,19 +615,34 @@ mod tests {
 
         #[test]
         fn from_special_name_returns_none_for_unknown() {
+            // Given unknown special names.
+            // When parsing from special name.
+            // Then it returns None.
             assert_eq!(CrosstermKey::from_special_name("unknown"), None);
             assert_eq!(CrosstermKey::from_special_name("foo"), None);
         }
 
         #[test]
         fn parse_key_sequence_parses_single_char() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("a");
+            // Given a single character string.
+            let input = "a";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns a vector with one character key.
             assert_eq!(keys, vec![CrosstermKey::Char('a')]);
         }
 
         #[test]
         fn parse_key_sequence_parses_multiple_chars() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("abc");
+            // Given a string with multiple characters.
+            let input = "abc";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns a vector with character keys for each.
             assert_eq!(
                 keys,
                 vec![
@@ -545,24 +655,45 @@ mod tests {
 
         #[test]
         fn parse_key_sequence_parses_special_key() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<enter>");
+            // Given a special key sequence string.
+            let input = "<enter>";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns a vector with the Enter key.
             assert_eq!(keys, vec![CrosstermKey::Enter]);
         }
 
         #[test]
         fn parse_key_sequence_parses_mixed_sequence() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<leader>m");
+            // Given a mixed sequence string with special key and char.
+            let input = "<leader>m";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns a vector with space and character keys.
             assert_eq!(keys, vec![CrosstermKey::Char(' '), CrosstermKey::Char('m')]);
         }
 
         #[test]
         fn parse_key_sequence_returns_empty_for_empty_string() {
-            let keys: Vec<CrosstermKey> = parse_key_sequence("");
+            // Given an empty string.
+            let input = "";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns an empty vector.
             assert!(keys.is_empty());
         }
 
         #[test]
         fn parse_key_sequence_handles_case_insensitive_special() {
+            // Given uppercase special key sequences.
+            // When parsing the key sequence.
+            // Then it returns the expected keys (case insensitive).
             let keys: Vec<CrosstermKey> = parse_key_sequence("<ENTER>");
             assert_eq!(keys, vec![CrosstermKey::Enter]);
 

@@ -35,7 +35,7 @@
 //!
 //! // When rendering
 //! let widget = WhichKey::new().max_height(15);
-//! widget.render(area, buffer, &mut state);
+//! widget.render(buffer, &mut state);
 //! ```
 
 mod group_builder;

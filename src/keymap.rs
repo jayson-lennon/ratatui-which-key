@@ -595,25 +595,36 @@ mod tests {
 
     #[test]
     fn new_creates_empty_keymap_with_space_leader() {
+        // Given no key bindings.
+        // (Keymap::new() creates an empty keymap)
+
+        // When creating a new keymap.
         let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> = Keymap::new();
 
+        // Then it has a space leader key and no bindings.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Char(' '));
         assert!(keymap.bindings().is_empty());
     }
 
     #[test]
     fn with_leader_creates_keymap_with_custom_leader() {
+        // Given no key bindings.
+
+        // When creating a keymap with a custom leader key.
         let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> =
             Keymap::with_leader(CrosstermKey::Esc);
 
+        // Then it uses the custom leader and has no bindings.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Esc);
         assert!(keymap.bindings().is_empty());
     }
 
     #[test]
     fn bind_single_key_creates_leaf_node() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When binding a single key.
         keymap.bind(
             "q",
             TestAction::Quit,
@@ -622,6 +633,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then a leaf node is created with the binding.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('q'));
@@ -630,8 +642,10 @@ mod tests {
 
     #[test]
     fn bind_multi_key_sequence_creates_branch_structure() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When binding a multi-key sequence.
         keymap.bind(
             "gg",
             TestAction::Quit,
@@ -640,6 +654,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then a branch structure is created.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('g'));
@@ -656,8 +671,10 @@ mod tests {
 
     #[test]
     fn bind_same_key_different_scopes_creates_multiple_entries() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When binding the same key with different scopes.
         keymap.bind(
             "<esc>",
             TestAction::Quit,
@@ -673,6 +690,7 @@ mod tests {
             TestScope::Insert,
         );
 
+        // Then multiple entries are created for that key.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Esc);
@@ -688,6 +706,7 @@ mod tests {
 
     #[test]
     fn bind_same_key_same_scope_updates_entry() {
+        // Given a keymap with a binding.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         keymap.bind(
@@ -697,6 +716,8 @@ mod tests {
             TestCategory::General,
             TestScope::Global,
         );
+
+        // When binding the same key with the same scope.
         keymap.bind(
             "q",
             TestAction::Save,
@@ -705,6 +726,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then the entry is updated.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
 
@@ -720,8 +742,10 @@ mod tests {
 
     #[test]
     fn bind_empty_sequence_does_nothing() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When binding an empty sequence.
         keymap.bind(
             "",
             TestAction::Quit,
@@ -730,11 +754,13 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then nothing is bound.
         assert!(keymap.bindings().is_empty());
     }
 
     #[test]
     fn bind_extends_existing_branch() {
+        // Given a keymap with a branch for 'g'.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         keymap.bind(
@@ -744,6 +770,8 @@ mod tests {
             TestCategory::Navigation,
             TestScope::Global,
         );
+
+        // When binding another key under the same prefix.
         keymap.bind(
             "gd",
             TestAction::Open,
@@ -752,6 +780,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then the branch is extended with the new key.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('g'));
@@ -768,6 +797,7 @@ mod tests {
 
     #[test]
     fn bind_converts_leaf_to_branch_when_extending() {
+        // Given a keymap with a leaf node.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         keymap.bind(
@@ -777,6 +807,8 @@ mod tests {
             TestCategory::Navigation,
             TestScope::Global,
         );
+
+        // When binding a multi-key sequence starting with that key.
         keymap.bind(
             "gg",
             TestAction::Open,
@@ -785,6 +817,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then the leaf is converted to a branch.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert!(child.node.is_branch());
@@ -799,8 +832,10 @@ mod tests {
 
     #[test]
     fn bind_returns_self_for_chaining() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When chaining multiple bind calls.
         keymap
             .bind(
                 "q",
@@ -817,29 +852,37 @@ mod tests {
                 TestScope::Global,
             );
 
+        // Then both bindings are added.
         assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
     fn get_node_at_path_returns_none_for_empty_keys() {
+        // Given an empty keymap.
         let keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When getting a node with an empty path.
         let result = keymap.get_node_at_path(&[]);
 
+        // Then no node is returned.
         assert!(result.is_none());
     }
 
     #[test]
     fn get_node_at_path_returns_none_for_nonexistent_key() {
+        // Given an empty keymap.
         let keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When getting a node with a nonexistent key.
         let result = keymap.get_node_at_path(&[CrosstermKey::Char('x')]);
 
+        // Then no node is returned.
         assert!(result.is_none());
     }
 
     #[test]
     fn get_children_at_path_returns_root_bindings_for_empty_keys() {
+        // Given a keymap with multiple bindings.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "q",
@@ -856,8 +899,10 @@ mod tests {
             TestScope::Global,
         );
 
+        // When getting children at an empty path.
         let result = keymap.get_children_at_path(&[]);
 
+        // Then root bindings are returned.
         assert!(result.is_some());
         let children = result.unwrap();
         assert_eq!(children.len(), 2);
@@ -865,6 +910,7 @@ mod tests {
 
     #[test]
     fn get_children_at_path_returns_none_for_leaf() {
+        // Given a keymap with a leaf node.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "q",
@@ -874,13 +920,16 @@ mod tests {
             TestScope::Global,
         );
 
+        // When getting children at the leaf path.
         let result = keymap.get_children_at_path(&[CrosstermKey::Char('q')]);
 
+        // Then none is returned.
         assert!(result.is_none());
     }
 
     #[test]
     fn is_prefix_key_returns_false_for_leaf() {
+        // Given a keymap with a leaf node.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "q",
@@ -890,13 +939,16 @@ mod tests {
             TestScope::Global,
         );
 
+        // When checking if 'q' is a prefix key.
         let result = keymap.is_prefix_key(CrosstermKey::Char('q'));
 
+        // Then it returns false.
         assert!(!result);
     }
 
     #[test]
     fn get_bindings_for_scope_filters_by_exact_scope() {
+        // Given a keymap with bindings in different scopes.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "q",
@@ -920,8 +972,10 @@ mod tests {
             TestScope::Normal,
         );
 
+        // When getting bindings for a specific scope.
         let result = keymap.get_bindings_for_scope(TestScope::Insert);
 
+        // Then only bindings with that exact scope are returned.
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].key, CrosstermKey::Char('w'));
         assert_eq!(result[0].description, "save");
@@ -929,6 +983,7 @@ mod tests {
 
     #[test]
     fn get_bindings_for_scope_returns_empty_for_no_matches() {
+        // Given a keymap with bindings in Global scope.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "q",
@@ -938,13 +993,16 @@ mod tests {
             TestScope::Global,
         );
 
+        // When getting bindings for a different scope.
         let result = keymap.get_bindings_for_scope(TestScope::Insert);
 
+        // Then an empty list is returned.
         assert!(result.is_empty());
     }
 
     #[test]
     fn get_bindings_for_scope_includes_branches() {
+        // Given a keymap with both branches and leaves.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
             "gg",
@@ -961,8 +1019,10 @@ mod tests {
             TestScope::Global,
         );
 
+        // When getting bindings for Global scope.
         let result = keymap.get_bindings_for_scope(TestScope::Global);
 
+        // Then both branch and leaf bindings are included.
         assert_eq!(result.len(), 2);
         let keys: Vec<_> = result.iter().map(|b| b.key.clone()).collect();
         assert!(keys.contains(&CrosstermKey::Char('g')));
@@ -971,10 +1031,13 @@ mod tests {
 
     #[test]
     fn describe_prefix_creates_branch_at_path() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When describing a prefix.
         keymap.describe("g", "go commands");
 
+        // Then a branch is created with the description.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('g'));
@@ -994,6 +1057,7 @@ mod tests {
 
     #[test]
     fn describe_prefix_updates_existing_placeholder_description() {
+        // Given a keymap with an existing binding.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         keymap.bind(
@@ -1003,8 +1067,11 @@ mod tests {
             TestCategory::Navigation,
             TestScope::Global,
         );
+
+        // When describing the prefix.
         keymap.describe("g", "go commands");
 
+        // Then the description is updated.
         let child = &keymap.bindings()[0];
         if let KeyNode::Branch { description, .. } = &child.node {
             assert_eq!(*description, "go commands");
@@ -1015,10 +1082,13 @@ mod tests {
 
     #[test]
     fn describe_prefix_works_for_nested_prefixes() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        // Given an empty keymap.
 
+        // When describing a nested prefix path.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe("abc", "nested command");
 
+        // Then the entire path is created with branches.
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('a'));
 
@@ -1060,8 +1130,10 @@ mod tests {
 
     #[test]
     fn describe_prefix_and_bind_work_together() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        // Given an empty keymap.
 
+        // When using describe and bind together.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe("g", "go commands").bind(
             "gg",
             TestAction::Quit,
@@ -1070,6 +1142,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // Then the prefix is described and the binding is under it.
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('g'));
 
@@ -1088,23 +1161,29 @@ mod tests {
 
     #[test]
     fn describe_prefix_empty_string_does_nothing() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When describing an empty prefix.
         keymap.describe("", "empty");
 
+        // Then no bindings are created.
         assert!(keymap.bindings().is_empty());
     }
 
     #[test]
     fn scope_groups_multiple_bindings() {
+        // Given an empty keymap.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
+        // When using scope to group bindings.
         keymap.scope(TestScope::Global, |b| {
             b.bind("q", TestAction::Quit, "quit", TestCategory::General)
                 .bind("w", TestAction::Save, "save", TestCategory::General)
                 .bind("h", TestAction::Open, "open", TestCategory::Navigation);
         });
 
+        // Then all bindings are in the specified scope.
         assert_eq!(keymap.bindings().len(), 3);
 
         let node_q = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);

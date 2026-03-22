@@ -143,43 +143,70 @@ mod tests {
 
     #[test]
     fn key_child_leaf_creates_leaf_node() {
+        // Given a test leaf child.
         let child = create_test_leaf();
 
-        assert!(!child.node.is_branch());
+        // When checking if the node is a branch.
+        let is_branch = child.node.is_branch();
+
+        // Then it is not a branch (it's a leaf).
+        assert!(!is_branch);
     }
 
     #[test]
     fn key_child_branch_creates_branch_node() {
+        // Given a test branch child.
         let child = create_test_branch();
 
-        assert!(child.node.is_branch());
+        // When checking if the node is a branch.
+        let is_branch = child.node.is_branch();
+
+        // Then it is a branch.
+        assert!(is_branch);
     }
 
     #[test]
     fn key_node_category_returns_leaf_category() {
+        // Given a test leaf child.
         let child = create_test_leaf();
 
-        assert_eq!(child.node.category(), Some(TestCategory::General));
+        // When getting the node category.
+        let category = child.node.category();
+
+        // Then it returns the leaf category.
+        assert_eq!(category, Some(TestCategory::General));
     }
 
     #[test]
     fn key_node_category_returns_none_for_branch() {
+        // Given a test branch child.
         let child = create_test_branch();
 
-        assert_eq!(child.node.category(), None);
+        // When getting the node category.
+        let category = child.node.category();
+
+        // Then it returns none.
+        assert_eq!(category, None);
     }
 
     #[test]
     fn branch_with_empty_children() {
+        // Given a branch with empty children.
         let child: KeyChild<TestKey, TestScope, TestAction, TestCategory> =
             KeyChild::branch(TestKey::Char('x'), "empty branch", vec![]);
 
-        assert!(child.node.is_branch());
-        assert_eq!(child.node.description(), "empty branch");
+        // When checking the branch properties.
+        let is_branch = child.node.is_branch();
+        let description = child.node.description();
+
+        // Then it is a branch with the correct description.
+        assert!(is_branch);
+        assert_eq!(description, "empty branch");
     }
 
     #[test]
     fn nested_branch_structure() {
+        // Given a nested branch structure with an inner leaf, inner branch, and outer branch.
         let inner_leaf = KeyChild::leaf(
             TestKey::Char('d'),
             TestAction::Quit,
@@ -191,7 +218,11 @@ mod tests {
             KeyChild::branch(TestKey::Char('d'), "delete operations", vec![inner_leaf]);
         let outer_branch = KeyChild::branch(TestKey::Char('g'), "go to", vec![inner_branch]);
 
-        assert!(outer_branch.node.is_branch());
+        // When checking the outer branch properties.
+        let is_branch = outer_branch.node.is_branch();
+
+        // Then the outer branch is a branch and contains the inner branch.
+        assert!(is_branch);
 
         if let KeyNode::Branch { children, .. } = outer_branch.node {
             assert_eq!(children.len(), 1);

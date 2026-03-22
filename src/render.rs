@@ -11,7 +11,6 @@ use crate::{BindingGroup, Key, WhichKey, WhichKeyState};
 /// Render the which-key popup.
 pub fn render_popup<K, S, A, C>(
     config: &WhichKey,
-    area: Rect,
     buf: &mut Buffer,
     state: &WhichKeyState<K, S, A, C>,
 ) where
@@ -33,7 +32,7 @@ pub fn render_popup<K, S, A, C>(
         format!(" {} ", state.format_path())
     };
 
-    let popup_area = calculate_popup_area(config, area, &columns, &title);
+    let popup_area = calculate_popup_area(config, *buf.area(), &columns, &title);
 
     // Clear the area first
     Clear.render(popup_area, buf);

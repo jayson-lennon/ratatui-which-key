@@ -1,6 +1,5 @@
 use ratatui::{
     buffer::Buffer,
-    layout::Rect,
     style::{Color, Modifier, Style},
 };
 
@@ -89,12 +88,8 @@ impl WhichKey {
     ///
     /// This method renders the widget with the given state.
     /// If the state is not active, nothing is rendered.
-    pub fn render<K, S, A, C>(
-        self,
-        area: Rect,
-        buf: &mut Buffer,
-        state: &mut WhichKeyState<K, S, A, C>,
-    ) where
+    pub fn render<K, S, A, C>(self, buf: &mut Buffer, state: &mut WhichKeyState<K, S, A, C>)
+    where
         K: Key + Clone + PartialEq,
         S: Clone + PartialEq + Send + Sync,
         A: Clone + Send + Sync,
@@ -104,6 +99,6 @@ impl WhichKey {
             return;
         }
 
-        render::render_popup(&self, area, buf, state);
+        render::render_popup(&self, buf, state);
     }
 }

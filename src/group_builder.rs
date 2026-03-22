@@ -1,4 +1,4 @@
-use crate::{Key, Keymap, parse_key_sequence};
+use crate::{parse_key_sequence, Key, Keymap};
 
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,

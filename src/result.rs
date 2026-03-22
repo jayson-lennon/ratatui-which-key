@@ -63,8 +63,11 @@ mod tests {
 
     #[test]
     fn consumed_returns_key_result_with_consumed_true() {
+        // Given a consumed KeyResult.
         let result: KeyResult<()> = KeyResult::consumed();
 
+        // When checking its properties.
+        // Then the consumed flag is true, action is none, and dismiss is false.
         assert!(result.consumed);
         assert!(result.action.is_none());
         assert!(!result.dismiss);
@@ -72,8 +75,11 @@ mod tests {
 
     #[test]
     fn ignored_returns_key_result_with_consumed_false() {
+        // Given an ignored KeyResult.
         let result: KeyResult<()> = KeyResult::ignored();
 
+        // When checking its properties.
+        // Then the consumed flag is false, action is none, and dismiss is false.
         assert!(!result.consumed);
         assert!(result.action.is_none());
         assert!(!result.dismiss);
@@ -81,8 +87,11 @@ mod tests {
 
     #[test]
     fn with_action_returns_key_result_with_action_and_dismiss() {
+        // Given a KeyResult with an action.
         let result = KeyResult::with_action("test_action");
 
+        // When checking its properties.
+        // Then consumed is true, action is Some("test_action"), and dismiss is true.
         assert!(result.consumed);
         assert_eq!(result.action, Some("test_action"));
         assert!(result.dismiss);
@@ -90,8 +99,11 @@ mod tests {
 
     #[test]
     fn dismiss_returns_key_result_with_dismiss_true() {
+        // Given a dismissed KeyResult.
         let result: KeyResult<()> = KeyResult::dismiss();
 
+        // When checking its properties.
+        // Then consumed is true, action is none, and dismiss is true.
         assert!(result.consumed);
         assert!(result.action.is_none());
         assert!(result.dismiss);
@@ -99,8 +111,13 @@ mod tests {
 
     #[test]
     fn and_dismiss_sets_dismiss_to_true() {
-        let result: KeyResult<()> = KeyResult::consumed().and_dismiss();
+        // Given a consumed KeyResult.
+        let result: KeyResult<()> = KeyResult::consumed();
 
+        // When calling and_dismiss on it.
+        let result = result.and_dismiss();
+
+        // Then dismiss is true while consumed remains true and action is none.
         assert!(result.consumed);
         assert!(result.action.is_none());
         assert!(result.dismiss);

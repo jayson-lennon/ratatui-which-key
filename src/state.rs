@@ -213,69 +213,91 @@ mod tests {
 
     #[test]
     fn new_creates_inactive_state() {
+        // Given a keymap.
         let keymap = create_test_keymap();
+
+        // When creating a new which-key state.
         let state = WhichKeyState::new(keymap, TestScope::Global);
 
+        // Then the state is inactive with an empty sequence.
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
     }
 
     #[test]
     fn toggle_flips_active() {
+        // Given a which-key state.
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
 
+        // When toggling the state.
         state.toggle();
+
+        // Then the state is active.
         assert!(state.active);
 
+        // When toggling again.
         state.toggle();
+
+        // Then the state is inactive.
         assert!(!state.active);
     }
 
     #[test]
     fn dismiss_clears_state() {
+        // Given an active state with a key in the sequence.
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
         state.active = true;
         state.current_sequence.push(TestKey::Char('a'));
 
+        // When dismissing the state.
         state.dismiss();
 
+        // Then the state is inactive and the sequence is empty.
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
     }
 
     #[test]
     fn is_pending_returns_true_when_keys_present() {
+        // Given a state with a key in the sequence.
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
         state.current_sequence.push(TestKey::Char('a'));
 
+        // When checking if pending.
         assert!(state.is_pending());
     }
 
     #[test]
     fn format_path_joins_keys() {
+        // Given a state with multiple keys in the sequence.
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
         state.current_sequence.push(TestKey::Char('a'));
         state.current_sequence.push(TestKey::Char('b'));
 
+        // When formatting the path.
         assert_eq!(state.format_path(), "a > b");
     }
 
     #[test]
     fn set_scope_updates_scope() {
+        // Given a state with global scope.
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
 
+        // When setting the scope to insert.
         state.set_scope(TestScope::Insert);
 
+        // Then the scope is updated.
         assert_eq!(*state.scope(), TestScope::Insert);
     }
 
     #[test]
     fn leaf_action_clears_sequence() {
+        // Given a keymap with a leaf action bound to "qw".
         let mut keymap = create_test_keymap();
         keymap.bind(
             "qw",
@@ -286,9 +308,11 @@ mod tests {
         );
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
 
+        // When pressing 'q' followed by 'w'.
         state.handle_key(TestKey::Char('q'));
         let result = state.handle_key(TestKey::Char('w'));
 
+        // Then the action is triggered and the state is cleared.
         assert!(result.has_action());
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
@@ -297,6 +321,7 @@ mod tests {
 
     #[test]
     fn backspace_dismisses_when_single_key_in_sequence() {
+        // Given a keymap with a bound action and an active state after pressing 'q'.
         let mut keymap = create_test_keymap();
         keymap.bind(
             "qw",
@@ -311,7 +336,10 @@ mod tests {
         assert!(state.active);
         assert!(!state.current_sequence.is_empty());
 
+        // When pressing backspace.
         state.handle_key(TestKey::Backspace);
+
+        // Then the state is dismissed and the sequence is cleared.
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
     }
