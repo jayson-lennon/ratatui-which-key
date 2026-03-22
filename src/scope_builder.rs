@@ -38,26 +38,8 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
 mod tests {
     #![allow(dead_code)]
     use super::*;
+    use crate::test_utils::{TestAction, TestCategory, TestScope};
     use crate::{CrosstermKey, KeyNode};
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum TestCategory {
-        General,
-        Navigation,
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestAction {
-        Quit,
-        Save,
-        Open,
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestScope {
-        Global,
-        Insert,
-    }
 
     #[test]
     fn bind_with_general_category_works_correctly() {

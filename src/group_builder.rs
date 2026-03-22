@@ -1,4 +1,4 @@
-use crate::{Key, Keymap, parse_key_sequence};
+use crate::{parse_key_sequence, Key, Keymap};
 
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
@@ -75,26 +75,8 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
 mod tests {
     #![allow(dead_code)]
     use super::*;
+    use crate::test_utils::{TestAction, TestCategory, TestScope};
     use crate::{CrosstermKey, KeyNode};
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestAction {
-        Quit,
-        Save,
-        Open,
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestScope {
-        Global,
-        Insert,
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestCategory {
-        General,
-        Navigation,
-    }
 
     #[test]
     fn bind_combines_prefix_with_sequence() {

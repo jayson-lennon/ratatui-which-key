@@ -38,6 +38,26 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
             KeyNode::Branch { .. } => None,
         }
     }
+
+    pub fn find_child_mut(&mut self, key: &K) -> Option<&mut KeyChild<K, S, A, C>>
+    where
+        K: PartialEq,
+    {
+        match self {
+            KeyNode::Leaf(_) => None,
+            KeyNode::Branch { children, .. } => children.iter_mut().find(|c| c.key == *key),
+        }
+    }
+
+    pub fn find_child(&self, key: &K) -> Option<&KeyChild<K, S, A, C>>
+    where
+        K: PartialEq,
+    {
+        match self {
+            KeyNode::Leaf(_) => None,
+            KeyNode::Branch { children, .. } => children.iter().find(|c| c.key == *key),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,73 +107,35 @@ pub struct LeafBinding<K: Key, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum TestCategory {
-        General,
-        Navigation,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct TestKey(char);
-
-    impl Key for TestKey {
-        fn display(&self) -> String {
-            self.0.to_string()
-        }
-
-        fn is_escape(&self) -> bool {
-            self.0 == '\x1b'
-        }
-
-        fn is_backspace(&self) -> bool {
-            self.0 == '\x7f'
-        }
-
-        fn space() -> Self {
-            TestKey(' ')
-        }
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    enum TestAction {
-        Quit,
-        Save,
-        Open,
-    }
-
-    #[derive(Debug, Clone, PartialEq)]
-    struct TestScope {
-        mode: &'static str,
-    }
+    use crate::test_utils::{TestAction, TestCategory, TestKey, TestScope};
 
     fn create_test_leaf() -> KeyChild<TestKey, TestScope, TestAction, TestCategory> {
         KeyChild::leaf(
-            TestKey('q'),
+            TestKey::Char('q'),
             TestAction::Quit,
             "quit application",
             TestCategory::General,
-            TestScope { mode: "normal" },
+            TestScope::Normal,
         )
     }
 
     fn create_test_branch() -> KeyChild<TestKey, TestScope, TestAction, TestCategory> {
         let save_child = KeyChild::leaf(
-            TestKey('s'),
+            TestKey::Char('s'),
             TestAction::Save,
             "save file",
             TestCategory::General,
-            TestScope { mode: "normal" },
+            TestScope::Normal,
         );
         let open_child = KeyChild::leaf(
-            TestKey('o'),
+            TestKey::Char('o'),
             TestAction::Open,
             "open file",
             TestCategory::Navigation,
-            TestScope { mode: "normal" },
+            TestScope::Normal,
         );
         KeyChild::branch(
-            TestKey('f'),
+            TestKey::Char('f'),
             "file operations",
             vec![save_child, open_child],
         )
@@ -207,12 +189,12 @@ mod tests {
             action: TestAction::Quit,
             description: "quit",
             category: TestCategory::General,
-            scope: TestScope { mode: "normal" },
+            scope: TestScope::Normal,
         }]);
 
-        let child = KeyChild::new(TestKey('q'), node.clone());
+        let child = KeyChild::new(TestKey::Char('q'), node.clone());
 
-        assert_eq!(child.key, TestKey('q'));
+        assert_eq!(child.key, TestKey::Char('q'));
         assert!(matches!(child.node, KeyNode::Leaf(_)));
     }
 
@@ -222,36 +204,36 @@ mod tests {
             action: TestAction::Save,
             description: "save file",
             category: TestCategory::Navigation,
-            scope: TestScope { mode: "insert" },
+            scope: TestScope::Insert,
         };
 
         assert_eq!(entry.action, TestAction::Save);
         assert_eq!(entry.description, "save file");
         assert_eq!(entry.category, TestCategory::Navigation);
-        assert_eq!(entry.scope.mode, "insert");
+        assert_eq!(entry.scope, TestScope::Insert);
     }
 
     #[test]
     fn leaf_binding_stores_all_fields() {
         let binding = LeafBinding {
-            key: TestKey('w'),
+            key: TestKey::Char('w'),
             action: TestAction::Save,
             description: "write file",
             category: TestCategory::General,
-            scope: TestScope { mode: "normal" },
+            scope: TestScope::Normal,
         };
 
-        assert_eq!(binding.key, TestKey('w'));
+        assert_eq!(binding.key, TestKey::Char('w'));
         assert_eq!(binding.action, TestAction::Save);
         assert_eq!(binding.description, "write file");
         assert_eq!(binding.category, TestCategory::General);
-        assert_eq!(binding.scope.mode, "normal");
+        assert_eq!(binding.scope, TestScope::Normal);
     }
 
     #[test]
     fn branch_with_empty_children() {
         let child: KeyChild<TestKey, TestScope, TestAction, TestCategory> =
-            KeyChild::branch(TestKey('x'), "empty branch", vec![]);
+            KeyChild::branch(TestKey::Char('x'), "empty branch", vec![]);
 
         assert!(child.node.is_branch());
         assert_eq!(child.node.description(), "empty branch");
@@ -260,14 +242,15 @@ mod tests {
     #[test]
     fn nested_branch_structure() {
         let inner_leaf = KeyChild::leaf(
-            TestKey('d'),
+            TestKey::Char('d'),
             TestAction::Quit,
             "delete",
             TestCategory::General,
-            TestScope { mode: "normal" },
+            TestScope::Normal,
         );
-        let inner_branch = KeyChild::branch(TestKey('d'), "delete operations", vec![inner_leaf]);
-        let outer_branch = KeyChild::branch(TestKey('g'), "go to", vec![inner_branch]);
+        let inner_branch =
+            KeyChild::branch(TestKey::Char('d'), "delete operations", vec![inner_leaf]);
+        let outer_branch = KeyChild::branch(TestKey::Char('g'), "go to", vec![inner_branch]);
 
         assert!(outer_branch.node.is_branch());
 

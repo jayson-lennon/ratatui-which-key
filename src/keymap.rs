@@ -2,8 +2,6 @@ use crate::{
     parse_key_sequence, Binding, BindingGroup, DisplayBinding, GroupBuilder, Key, KeyChild,
     KeyNode, LeafEntry, NodeResult, ScopeBuilder,
 };
-use tracing::warn;
-
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
     leader_key: K,
@@ -102,11 +100,11 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             let first = keys[0].clone();
             let rest = &keys[1..];
             let child = Self::build_tree(rest, action, description, category, scope);
-            warn!(
-                key = %first.display(),
-                "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
-                first.display()
-            );
+            // warn!(
+            //     key = %first.display(),
+            //     "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
+            //     first.display()
+            // );
             KeyChild::branch(first, "...", vec![child])
         }
     }
@@ -156,11 +154,11 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         match &mut child.node {
             KeyNode::Leaf(_) => {
                 let new_child = Self::build_tree(&keys[1..], action, description, category, scope);
-                warn!(
-                    key = %child.key.display(),
-                    "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
-                    child.key.display()
-                );
+                // warn!(
+                //     key = %child.key.display(),
+                //     "Keybind creates group without description: key \"{}\" uses default \"...\" description. Use .describe_prefix() or .describe() to provide a group description.",
+                //     child.key.display()
+                // );
                 child.node = KeyNode::Branch {
                     description: "...",
                     children: vec![new_child],
@@ -460,23 +458,6 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
-    fn create_child_for_remaining_keys(
-        keys: &[K],
-        description: &'static str,
-    ) -> KeyChild<K, S, A, C>
-    where
-        K: Clone,
-        S: Clone,
-        A: Clone,
-        C: Clone,
-    {
-        if keys.len() == 1 {
-            KeyChild::branch(keys[0].clone(), description, Vec::new())
-        } else {
-            Self::build_branch_tree(keys, description)
-        }
-    }
-
     fn ensure_final_key_is_branch(child: &mut KeyChild<K, S, A, C>, description: &'static str) {
         match &mut child.node {
             KeyNode::Branch {
@@ -514,7 +495,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
 
         match &mut child.node {
             KeyNode::Leaf(_) => {
-                let new_child = Self::create_child_for_remaining_keys(remaining, description);
+                let new_child = Self::build_branch_tree(remaining, description);
                 child.node = KeyNode::Branch {
                     description,
                     children: vec![new_child],
@@ -531,7 +512,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
                     Self::ensure_branch_in_child(next_child, remaining, description);
                 } else {
-                    let new_child = Self::create_child_for_remaining_keys(remaining, description);
+                    let new_child = Self::build_branch_tree(remaining, description);
                     children.push(new_child);
                 }
             }

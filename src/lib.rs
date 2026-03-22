@@ -46,6 +46,7 @@ mod render;
 mod result;
 mod scope_builder;
 mod state;
+mod test_utils;
 mod types;
 mod widget;
 
