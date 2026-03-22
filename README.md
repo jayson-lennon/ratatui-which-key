@@ -4,8 +4,8 @@ A which-key popup widget for [ratatui](https://github.com/ratatui/ratatui) appli
 
 Displays available keybindings in a popup when the user presses a prefix key.
 
-![media/screenshot-1.png]
-![media/screenshot-2.png]
+![screenshot 1](media/screenshot-1.png)
+![screenshot 2](media/screenshot-2.png)
 
 ## How It Works
 
