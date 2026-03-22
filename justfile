@@ -6,6 +6,7 @@ clippy:
 
 test:
   cargo nextest run
+  cargo test --doc
 
 clean:
   rm -rfv .build/

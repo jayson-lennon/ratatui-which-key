@@ -7,6 +7,10 @@ A which-key popup widget + input handler for [ratatui](https://github.com/ratatu
 
 All input can be routed to `ratatui-which-key` and it will return an application-specific action to perform based on the configured keybinds.
 
+Check out [the docs](https://docs.rs/crate/ratatui-which-key) for more info.
+
+There is also a [sample application](examples/demo.rs) that you can run with `cargo run --example demo` which shows how to perform bindings and set up `ratatui-which-key` for usage in an app.
+
 ## How It Works
 
 `ratatui-which-key` requires three data types be defined in your application.
@@ -65,14 +69,14 @@ impl std::fmt::Display for Action {
 // In your input handler:
 if let Some(action) = app.which_key.handle_key(key).action {
     match action {
-        Action::Quit => // ...
         Action::ToggleHelp => app.which_key.toggle(),
-        Action::MoveUp => // ...
-        Action::MoveDown = // ...
-        Action::Save = // ...
-        Action::OpenFile = // ...
-        Action::SearchFiles = // ...
-        Action::SearchBuffers = // ...
+        Action::Quit => (), // logic here
+        Action::MoveUp => (),
+        Action::MoveDown => (),
+        Action::Save => (),
+        Action::OpenFile => (),
+        Action::SearchFiles => (),
+        Action::SearchBuffers => (),
     }
 }
 ```
@@ -93,7 +97,7 @@ enum Category {
 
 ## Keymap Configuration
 
-You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`:
+You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`. The code comments explain the different ways of performing keybindings.
 
 ```rust
 struct App {
@@ -153,8 +157,6 @@ if app.which_key.active {
     widget.render(frame.buffer_mut(), &mut app.which_key);
 }
 ```
-
-There is a [sample application](examples/demo.rs) that you can run with `cargo run --example demo` which shows how to perform bindings and set up `ratatui-which-key` for usage in an app.
 
 ## License
 
