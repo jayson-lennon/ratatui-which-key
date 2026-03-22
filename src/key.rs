@@ -237,14 +237,21 @@ mod tests {
         }
 
         #[test]
-        fn display_returns_special_key_names() {
-            // Given special key variants.
-            // When displaying each special key.
+        fn display_returns_control_key_names() {
+            // Given control key variants.
+            // When displaying each control key.
             // Then it returns the expected name.
             assert_eq!(CrosstermKey::Tab.display(), "Tab");
             assert_eq!(CrosstermKey::Enter.display(), "Enter");
             assert_eq!(CrosstermKey::Backspace.display(), "Backspace");
             assert_eq!(CrosstermKey::Esc.display(), "Esc");
+        }
+
+        #[test]
+        fn display_returns_navigation_key_names() {
+            // Given navigation key variants.
+            // When displaying each navigation key.
+            // Then it returns the expected name.
             assert_eq!(CrosstermKey::Home.display(), "Home");
             assert_eq!(CrosstermKey::End.display(), "End");
             assert_eq!(CrosstermKey::PageUp.display(), "PageUp");
@@ -563,10 +570,10 @@ mod tests {
         }
 
         #[test]
-        fn from_special_name_parses_function_keys() {
-            // Given function key names as special names.
+        fn from_special_name_parses_valid_function_keys() {
+            // Given valid function key names.
             // When parsing from special name.
-            // Then valid names return the expected function key, invalid names return None.
+            // Then it returns the expected function key variants.
             assert_eq!(
                 CrosstermKey::from_special_name("f1"),
                 Some(CrosstermKey::F(1))
@@ -575,6 +582,13 @@ mod tests {
                 CrosstermKey::from_special_name("f12"),
                 Some(CrosstermKey::F(12))
             );
+        }
+
+        #[test]
+        fn from_special_name_returns_none_for_invalid_function_keys() {
+            // Given invalid function key names.
+            // When parsing from special name.
+            // Then it returns None.
             assert_eq!(CrosstermKey::from_special_name("f0"), None);
             assert_eq!(CrosstermKey::from_special_name("f13"), None);
         }
@@ -690,14 +704,26 @@ mod tests {
         }
 
         #[test]
-        fn parse_key_sequence_handles_case_insensitive_special() {
-            // Given uppercase special key sequences.
-            // When parsing the key sequence.
-            // Then it returns the expected keys (case insensitive).
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<ENTER>");
-            assert_eq!(keys, vec![CrosstermKey::Enter]);
+        fn parse_key_sequence_parses_uppercase_enter() {
+            // Given an uppercase ENTER sequence.
+            let input = "<ENTER>";
 
-            let keys: Vec<CrosstermKey> = parse_key_sequence("<TAB>");
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns the Enter key.
+            assert_eq!(keys, vec![CrosstermKey::Enter]);
+        }
+
+        #[test]
+        fn parse_key_sequence_parses_uppercase_tab() {
+            // Given an uppercase TAB sequence.
+            let input = "<TAB>";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+
+            // Then it returns the Tab key.
             assert_eq!(keys, vec![CrosstermKey::Tab]);
         }
     }

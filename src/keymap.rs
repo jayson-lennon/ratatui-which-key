@@ -571,6 +571,7 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::keymap_with_binding;
     use crate::CrosstermKey;
 
     #[derive(Debug, Clone, PartialEq)]
@@ -621,11 +622,8 @@ mod tests {
 
     #[test]
     fn bind_single_key_creates_leaf_node() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a single key.
-        keymap.bind(
+        // Given a keymap with a single binding.
+        let keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
             "quit",
@@ -671,17 +669,14 @@ mod tests {
 
     #[test]
     fn bind_same_key_different_scopes_creates_multiple_entries() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding the same key with different scopes.
-        keymap.bind(
+        let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "<esc>",
             TestAction::Quit,
             "quit",
             TestCategory::General,
             TestScope::Global,
         );
+
         keymap.bind(
             "<esc>",
             TestAction::Save,
@@ -690,14 +685,63 @@ mod tests {
             TestScope::Insert,
         );
 
-        // Then multiple entries are created for that key.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Esc);
 
         if let KeyNode::Leaf(entries) = &child.node {
             assert_eq!(entries.len(), 2);
+        } else {
+            panic!("expected leaf node");
+        }
+    }
+
+    #[test]
+    fn bind_same_key_different_scopes_preserves_first_scope() {
+        let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
+            "<esc>",
+            TestAction::Quit,
+            "quit",
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        keymap.bind(
+            "<esc>",
+            TestAction::Save,
+            "save and quit",
+            TestCategory::General,
+            TestScope::Insert,
+        );
+
+        let child = &keymap.bindings()[0];
+        if let KeyNode::Leaf(entries) = &child.node {
             assert_eq!(entries[0].scope, TestScope::Global);
+        } else {
+            panic!("expected leaf node");
+        }
+    }
+
+    #[test]
+    fn bind_same_key_different_scopes_preserves_second_scope() {
+        let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
+            "<esc>",
+            TestAction::Quit,
+            "quit",
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        keymap.bind(
+            "<esc>",
+            TestAction::Save,
+            "save and quit",
+            TestCategory::General,
+            TestScope::Insert,
+        );
+
+        let child = &keymap.bindings()[0];
+        if let KeyNode::Leaf(entries) = &child.node {
             assert_eq!(entries[1].scope, TestScope::Insert);
         } else {
             panic!("expected leaf node");
@@ -705,11 +749,8 @@ mod tests {
     }
 
     #[test]
-    fn bind_same_key_same_scope_updates_entry() {
-        // Given a keymap with a binding.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        keymap.bind(
+    fn bind_same_key_same_scope_updates_action() {
+        let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
             "quit",
@@ -717,7 +758,6 @@ mod tests {
             TestScope::Global,
         );
 
-        // When binding the same key with the same scope.
         keymap.bind(
             "q",
             TestAction::Save,
@@ -726,13 +766,38 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the entry is updated.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
 
         if let KeyNode::Leaf(entries) = &child.node {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Save);
+        } else {
+            panic!("expected leaf node");
+        }
+    }
+
+    #[test]
+    fn bind_same_key_same_scope_updates_description_and_category() {
+        let mut keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
+            "q",
+            TestAction::Quit,
+            "quit",
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        keymap.bind(
+            "q",
+            TestAction::Save,
+            "save",
+            TestCategory::Navigation,
+            TestScope::Global,
+        );
+
+        let child = &keymap.bindings()[0];
+
+        if let KeyNode::Leaf(entries) = &child.node {
             assert_eq!(entries[0].description, "save");
             assert_eq!(entries[0].category, TestCategory::Navigation);
         } else {
@@ -759,8 +824,7 @@ mod tests {
     }
 
     #[test]
-    fn bind_extends_existing_branch() {
-        // Given a keymap with a branch for 'g'.
+    fn bind_extends_existing_branch_adds_new_child() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
 
         keymap.bind(
@@ -771,7 +835,6 @@ mod tests {
             TestScope::Global,
         );
 
-        // When binding another key under the same prefix.
         keymap.bind(
             "gd",
             TestAction::Open,
@@ -780,7 +843,6 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the branch is extended with the new key.
         assert_eq!(keymap.bindings().len(), 1);
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('g'));
@@ -788,8 +850,37 @@ mod tests {
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children.len(), 2);
             let keys: Vec<_> = children.iter().map(|c| c.key.clone()).collect();
-            assert!(keys.contains(&CrosstermKey::Char('g')));
             assert!(keys.contains(&CrosstermKey::Char('d')));
+        } else {
+            panic!("expected branch node");
+        }
+    }
+
+    #[test]
+    fn bind_extends_existing_branch_preserves_existing_children() {
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+
+        keymap.bind(
+            "gg",
+            TestAction::Quit,
+            "go to top",
+            TestCategory::Navigation,
+            TestScope::Global,
+        );
+
+        keymap.bind(
+            "gd",
+            TestAction::Open,
+            "go to definition",
+            TestCategory::Navigation,
+            TestScope::Global,
+        );
+
+        let child = &keymap.bindings()[0];
+
+        if let KeyNode::Branch { children, .. } = &child.node {
+            let keys: Vec<_> = children.iter().map(|c| c.key.clone()).collect();
+            assert!(keys.contains(&CrosstermKey::Char('g')));
         } else {
             panic!("expected branch node");
         }
@@ -930,8 +1021,7 @@ mod tests {
     #[test]
     fn is_prefix_key_returns_false_for_leaf() {
         // Given a keymap with a leaf node.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
+        let keymap = keymap_with_binding::<CrosstermKey, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
             "quit",
@@ -1081,14 +1171,31 @@ mod tests {
     }
 
     #[test]
-    fn describe_prefix_works_for_nested_prefixes() {
-        // Given an empty keymap.
+    fn describe_prefix_creates_single_level_branch() {
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.describe("a", "single command");
 
-        // When describing a nested prefix path.
+        assert_eq!(keymap.bindings().len(), 1);
+        let child = &keymap.bindings()[0];
+        assert_eq!(child.key, CrosstermKey::Char('a'));
+
+        if let KeyNode::Branch {
+            description,
+            children,
+        } = &child.node
+        {
+            assert_eq!(*description, "single command");
+            assert!(children.is_empty());
+        } else {
+            panic!("expected branch node");
+        }
+    }
+
+    #[test]
+    fn describe_prefix_creates_deeply_nested_branches() {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe("abc", "nested command");
 
-        // Then the entire path is created with branches.
         let child = &keymap.bindings()[0];
         assert_eq!(child.key, CrosstermKey::Char('a'));
 
@@ -1162,7 +1269,7 @@ mod tests {
     #[test]
     fn describe_prefix_empty_string_does_nothing() {
         // Given an empty keymap.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
 
         // When describing an empty prefix.
         keymap.describe("", "empty");
@@ -1172,27 +1279,17 @@ mod tests {
     }
 
     #[test]
-    fn scope_groups_multiple_bindings() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+    fn scope_groups_binds_first_key() {
+        let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
 
-        // When using scope to group bindings.
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, "quit", TestCategory::General)
-                .bind("w", TestAction::Save, "save", TestCategory::General)
-                .bind("h", TestAction::Open, "open", TestCategory::Navigation);
+            b.bind("q", TestAction::Quit, "quit", TestCategory::General);
         });
 
-        // Then all bindings are in the specified scope.
-        assert_eq!(keymap.bindings().len(), 3);
+        assert_eq!(keymap.bindings().len(), 1);
 
         let node_q = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
-        let node_w = keymap.get_node_at_path(&[CrosstermKey::Char('w')]);
-        let node_h = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
-
         assert!(node_q.is_some());
-        assert!(node_w.is_some());
-        assert!(node_h.is_some());
 
         if let Some(KeyNode::Leaf(entries)) = node_q {
             assert_eq!(entries.len(), 1);
@@ -1201,6 +1298,20 @@ mod tests {
         } else {
             panic!("expected leaf node for 'q'");
         }
+    }
+
+    #[test]
+    fn scope_groups_binds_second_key() {
+        let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
+
+        keymap.scope(TestScope::Global, |b| {
+            b.bind("w", TestAction::Save, "save", TestCategory::General);
+        });
+
+        assert_eq!(keymap.bindings().len(), 1);
+
+        let node_w = keymap.get_node_at_path(&[CrosstermKey::Char('w')]);
+        assert!(node_w.is_some());
 
         if let Some(KeyNode::Leaf(entries)) = node_w {
             assert_eq!(entries.len(), 1);
@@ -1209,6 +1320,20 @@ mod tests {
         } else {
             panic!("expected leaf node for 'w'");
         }
+    }
+
+    #[test]
+    fn scope_groups_binds_third_key() {
+        let mut keymap = Keymap::<CrosstermKey, TestScope, TestAction, TestCategory>::new();
+
+        keymap.scope(TestScope::Global, |b| {
+            b.bind("h", TestAction::Open, "open", TestCategory::Navigation);
+        });
+
+        assert_eq!(keymap.bindings().len(), 1);
+
+        let node_h = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        assert!(node_h.is_some());
 
         if let Some(KeyNode::Leaf(entries)) = node_h {
             assert_eq!(entries.len(), 1);

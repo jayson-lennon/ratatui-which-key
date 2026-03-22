@@ -225,21 +225,24 @@ mod tests {
     }
 
     #[test]
-    fn toggle_flips_active() {
-        // Given a which-key state.
+    fn toggle_activates_inactive_state() {
         let keymap = create_test_keymap();
         let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        assert!(!state.active);
 
-        // When toggling the state.
         state.toggle();
 
-        // Then the state is active.
         assert!(state.active);
+    }
 
-        // When toggling again.
+    #[test]
+    fn toggle_deactivates_active_state() {
+        let keymap = create_test_keymap();
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        state.active = true;
+
         state.toggle();
 
-        // Then the state is inactive.
         assert!(!state.active);
     }
 
@@ -295,24 +298,22 @@ mod tests {
         assert_eq!(*state.scope(), TestScope::Insert);
     }
 
+    use crate::test_utils::state_with_binding_and_sequence;
+
     #[test]
     fn leaf_action_clears_sequence() {
-        // Given a keymap with a leaf action bound to "qw".
-        let mut keymap = create_test_keymap();
-        keymap.bind(
+        let mut state = state_with_binding_and_sequence(
             "qw",
             TestAction::Quit,
             "quit",
             TestCategory::General,
             TestScope::Global,
+            &[],
         );
-        let mut state = WhichKeyState::new(keymap, TestScope::Global);
 
-        // When pressing 'q' followed by 'w'.
         state.handle_key(TestKey::Char('q'));
         let result = state.handle_key(TestKey::Char('w'));
 
-        // Then the action is triggered and the state is cleared.
         assert!(result.has_action());
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
@@ -321,25 +322,17 @@ mod tests {
 
     #[test]
     fn backspace_dismisses_when_single_key_in_sequence() {
-        // Given a keymap with a bound action and an active state after pressing 'q'.
-        let mut keymap = create_test_keymap();
-        keymap.bind(
+        let mut state = state_with_binding_and_sequence(
             "qw",
             TestAction::Quit,
             "quit",
             TestCategory::General,
             TestScope::Global,
+            &[TestKey::Char('q')],
         );
-        let mut state = WhichKeyState::new(keymap, TestScope::Global);
 
-        state.handle_key(TestKey::Char('q'));
-        assert!(state.active);
-        assert!(!state.current_sequence.is_empty());
-
-        // When pressing backspace.
         state.handle_key(TestKey::Backspace);
 
-        // Then the state is dismissed and the sequence is cleared.
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
     }

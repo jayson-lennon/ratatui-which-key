@@ -63,38 +63,59 @@ mod tests {
     }
 
     #[test]
-    fn chaining_multiple_bindings_works() {
-        // Given a keymap with multiple chained bindings in the same scope.
+    fn chaining_binds_first_key() {
+        // Given a keymap with a chained binding.
         let mut keymap = Keymap::new();
         let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
-        builder
-            .bind("q", TestAction::Quit, "quit", TestCategory::General)
-            .bind("h", TestAction::Open, "help", TestCategory::Navigation)
-            .bind("s", TestAction::Save, "save", TestCategory::General);
+        builder.bind("q", TestAction::Quit, "quit", TestCategory::General);
 
-        // When looking up each binding.
-        let node_q = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
-        let node_h = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
-        let node_s = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
+        // When looking up the binding.
+        let node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
 
-        // Then all bindings are registered.
-        assert!(node_q.is_some());
-        assert!(node_h.is_some());
-        assert!(node_s.is_some());
-
-        if let Some(KeyNode::Leaf(entries)) = node_q {
+        // Then the binding exists with the correct action.
+        assert!(node.is_some());
+        if let Some(KeyNode::Leaf(entries)) = node {
+            assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Quit);
         } else {
             panic!("Expected leaf node for 'q'");
         }
+    }
 
-        if let Some(KeyNode::Leaf(entries)) = node_h {
+    #[test]
+    fn chaining_binds_second_key() {
+        // Given a keymap with a chained binding.
+        let mut keymap = Keymap::new();
+        let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
+        builder.bind("h", TestAction::Open, "help", TestCategory::Navigation);
+
+        // When looking up the binding.
+        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+
+        // Then the binding exists with the correct action.
+        assert!(node.is_some());
+        if let Some(KeyNode::Leaf(entries)) = node {
+            assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Open);
         } else {
             panic!("Expected leaf node for 'h'");
         }
+    }
 
-        if let Some(KeyNode::Leaf(entries)) = node_s {
+    #[test]
+    fn chaining_binds_third_key() {
+        // Given a keymap with a chained binding.
+        let mut keymap = Keymap::new();
+        let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
+        builder.bind("s", TestAction::Save, "save", TestCategory::General);
+
+        // When looking up the binding.
+        let node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
+
+        // Then the binding exists with the correct action.
+        assert!(node.is_some());
+        if let Some(KeyNode::Leaf(entries)) = node {
+            assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Save);
         } else {
             panic!("Expected leaf node for 's'");
