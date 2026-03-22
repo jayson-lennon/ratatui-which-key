@@ -1,0 +1,22 @@
+[package]
+name = "ratatui-which-key"
+edition = "2024"
+version = "0.1.0"
+description = "A which-key popup widget for ratatui applications"
+license = "MIT"
+
+[features]
+default = ["crossterm"]
+crossterm = ["dep:crossterm"]
+
+[lints]
+workspace = true
+
+[dependencies]
+derive_more = { workspace = true }
+ratatui = { workspace = true }
+tracing = { workspace = true }
+crossterm = { workspace = true, optional = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
