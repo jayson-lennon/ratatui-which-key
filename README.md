@@ -154,6 +154,8 @@ if app.which_key.active {
 }
 ```
 
+There is an [sample application](examples/demo.rs) that you can run with `cargo run --example demo` which shows how to perform bindings and set up `ratatui-which-key` for usage in an app.
+
 ## License
 
 AGPLv3
