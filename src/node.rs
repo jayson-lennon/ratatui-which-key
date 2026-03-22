@@ -1,23 +1,34 @@
 use crate::Key;
 
+/// A single action entry in a leaf node.
 #[derive(Debug, Clone)]
 pub struct LeafEntry<S, A, C> {
+    /// The action to execute.
     pub action: A,
+    /// Human-readable description of the action.
     pub description: String,
+    /// Category for grouping related actions.
     pub category: C,
+    /// Scope where this action is valid.
     pub scope: S,
 }
 
+/// A node in the keybinding tree, either a leaf with actions or a branch with children.
 #[derive(Debug, Clone)]
 pub enum KeyNode<K: Key, S, A, C> {
+    /// A terminal node containing one or more action entries.
     Leaf(Vec<LeafEntry<S, A, C>>),
+    /// A non-terminal node with a description and child nodes.
     Branch {
+        /// Description shown in the which-key popup.
         description: &'static str,
+        /// Child key bindings.
         children: Vec<KeyChild<K, S, A, C>>,
     },
 }
 
 impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
+    /// Returns the description of this node.
     pub fn description(&self) -> String {
         match self {
             KeyNode::Leaf(entries) => entries
@@ -27,10 +38,12 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
         }
     }
 
+    /// Returns `true` if this node is a branch with children.
     pub fn is_branch(&self) -> bool {
         matches!(self, KeyNode::Branch { .. })
     }
 
+    /// Returns the category of the first leaf entry, or `None` for branches.
     pub fn category(&self) -> Option<C>
     where
         C: Clone,
@@ -41,6 +54,7 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
         }
     }
 
+    /// Returns a mutable reference to the child with the given key, if found.
     pub fn find_child_mut(&mut self, key: &K) -> Option<&mut KeyChild<K, S, A, C>>
     where
         K: PartialEq,
@@ -51,6 +65,7 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
         }
     }
 
+    /// Returns a reference to the child with the given key, if found.
     pub fn find_child(&self, key: &K) -> Option<&KeyChild<K, S, A, C>>
     where
         K: PartialEq,
@@ -62,17 +77,22 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
     }
 }
 
+/// A key binding with its associated key and node.
 #[derive(Debug, Clone)]
 pub struct KeyChild<K: Key, S, A, C> {
+    /// The key that triggers this binding.
     pub key: K,
+    /// The node (leaf or branch) for this binding.
     pub node: KeyNode<K, S, A, C>,
 }
 
 impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
+    /// Creates a new key child with the given key and node.
     pub fn new(key: K, node: KeyNode<K, S, A, C>) -> Self {
         Self { key, node }
     }
 
+    /// Creates a leaf key child with a single action entry.
     pub fn leaf(key: K, action: A, description: String, category: C, scope: S) -> Self {
         let entry = LeafEntry {
             action,
@@ -86,6 +106,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
         }
     }
 
+    /// Creates a branch key child with the given description and children.
     pub fn branch(key: K, description: &'static str, children: Vec<Self>) -> Self {
         Self {
             key,
@@ -97,12 +118,18 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
     }
 }
 
+/// A flattened key binding for display purposes.
 #[derive(Debug, Clone)]
 pub struct LeafBinding<K: Key, S, A, C> {
+    /// The key that triggers this binding.
     pub key: K,
+    /// The action to execute.
     pub action: A,
+    /// Human-readable description of the action.
     pub description: String,
+    /// Category for grouping related actions.
     pub category: C,
+    /// Scope where this action is valid.
     pub scope: S,
 }
 

@@ -1,5 +1,9 @@
 use crate::{Key, Keymap};
 
+/// A builder for binding key sequences with a pre-configured scope and category.
+///
+/// This builder simplifies repetitive bindings by storing a scope and category
+/// that are automatically applied to each [`bind`](Self::bind) call.
 pub struct ScopeAndCategoryBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
     scope: S,
@@ -15,6 +19,7 @@ impl<'a, K: Key, S, A, C> ScopeAndCategoryBuilder<'a, K, S, A, C> {
         }
     }
 
+    /// Binds a key sequence to an action using the configured scope and category.
     pub fn bind(&mut self, sequence: &str, action: A) -> &mut Self
     where
         K: Clone,

@@ -14,7 +14,7 @@ impl<'a, K: Key, S, A, C> CategoryBuilder<'a, K, S, A, C> {
         Self { keymap, category }
     }
 
-    /// Adds a keybinding with explicit scope.
+    /// Adds a keybinding with the builder's category and an explicit scope.
     pub fn bind(&mut self, sequence: &str, action: A, scope: S) -> &mut Self
     where
         K: Clone,

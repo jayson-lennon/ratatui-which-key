@@ -1,5 +1,6 @@
-use crate::{parse_key_sequence, Key, Keymap};
+use crate::{Key, Keymap, parse_key_sequence};
 
+/// A builder for binding key sequences under a shared prefix.
 pub struct GroupBuilder<'a, K: Key, S, A, C> {
     keymap: &'a mut Keymap<K, S, A, C>,
     prefix: Vec<K>,
@@ -10,6 +11,7 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         Self { keymap, prefix }
     }
 
+    /// Binds a key sequence to an action, prepending the group's prefix.
     pub fn bind(&mut self, sequence: &str, action: A, category: C, scope: S) -> &mut Self
     where
         K: Clone,
@@ -27,6 +29,10 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         self
     }
 
+    /// Creates a nested group with a description and binds keys within it.
+    ///
+    /// The `prefix` is appended to the current prefix, and `bindings` receives
+    /// a new `GroupBuilder` for the nested group.
     pub fn describe<F>(&mut self, prefix: &str, description: &'static str, bindings: F)
     where
         F: for<'b> FnOnce(&mut GroupBuilder<'b, K, S, A, C>),
@@ -46,6 +52,7 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         bindings(&mut builder);
     }
 
+    /// Adds a description to a prefix without creating nested bindings.
     pub fn describe_prefix(&mut self, prefix: &str, description: &'static str) -> &mut Self
     where
         K: Clone,

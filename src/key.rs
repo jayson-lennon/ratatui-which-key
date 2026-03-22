@@ -1,9 +1,16 @@
 use std::hash::Hash;
 
+/// A trait for abstracting keyboard key representation.
+///
+/// This trait enables different backends to implement their own key types
+/// while providing a common interface for display and conversion.
 pub trait Key: Clone + PartialEq + Eq + Send + Sync + 'static {
+    /// Returns a human-readable string representation of the key.
     fn display(&self) -> String;
+    /// Returns true if this key represents backspace.
     fn is_backspace(&self) -> bool;
 
+    /// Creates a key from a character, if supported.
     fn from_char(_c: char) -> Option<Self>
     where
         Self: Sized,
@@ -11,6 +18,7 @@ pub trait Key: Clone + PartialEq + Eq + Send + Sync + 'static {
         None
     }
 
+    /// Creates a key from a special name (e.g., "enter", "tab", "c-x").
     fn from_special_name(_name: &str) -> Option<Self>
     where
         Self: Sized,
@@ -18,11 +26,13 @@ pub trait Key: Clone + PartialEq + Eq + Send + Sync + 'static {
         None
     }
 
+    /// Creates a space key.
     fn space() -> Self
     where
         Self: Sized;
 }
 
+/// A key representation for the crossterm backend.
 #[cfg(feature = "crossterm")]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CrosstermKey {
@@ -45,6 +55,7 @@ pub enum CrosstermKey {
 
 #[cfg(feature = "crossterm")]
 impl CrosstermKey {
+    /// Creates a key from crossterm's KeyCode and KeyModifiers.
     pub fn from_keycode(
         code: crossterm::event::KeyCode,
         modifiers: crossterm::event::KeyModifiers,

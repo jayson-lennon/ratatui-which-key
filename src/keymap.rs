@@ -2,12 +2,24 @@ use crate::{
     Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
     LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
 };
+/// A hierarchical keymap that maps key sequences to actions with scope and category support.
+///
+/// The keymap stores bindings in a tree structure where multi-key sequences
+/// create branch nodes and leaf nodes contain the actual actions.
+///
+/// # Type Parameters
+///
+/// * `K` - The key type (must implement [`Key`])
+/// * `S` - The scope type for context-sensitive bindings
+/// * `A` - The action type triggered by key sequences
+/// * `C` - The category type for grouping bindings
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
     leader_key: K,
 }
 
 impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
+    /// Creates a new empty keymap with space as the leader key.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -16,6 +28,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Creates a new empty keymap with a custom leader key.
     #[must_use]
     pub fn with_leader(leader_key: K) -> Self {
         Self {
@@ -24,16 +37,19 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Returns a reference to the leader key.
     #[must_use]
     pub fn leader_key(&self) -> &K {
         &self.leader_key
     }
 
+    /// Returns a slice of all root-level key bindings.
     #[must_use]
     pub fn bindings(&self) -> &[KeyChild<K, S, A, C>] {
         &self.bindings
     }
 
+    /// Binds a key sequence to an action with category and scope.
     pub fn bind(&mut self, sequence: &str, action: A, category: C, scope: S) -> &mut Self
     where
         K: Clone,
@@ -147,6 +163,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Returns the node at the given key path, or `None` if not found.
     #[must_use]
     pub fn get_node_at_path(&self, keys: &[K]) -> Option<&KeyNode<K, S, A, C>>
     where
@@ -192,6 +209,10 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Returns the children at the given key path as (key, description) pairs.
+    ///
+    /// Returns `None` if the path leads to a leaf node or doesn't exist.
+    /// Returns root bindings for an empty path.
     #[must_use]
     pub fn get_children_at_path(&self, keys: &[K]) -> Option<Vec<(K, String)>>
     where
@@ -219,7 +240,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
-    #[must_use]
+    /// Returns `true` if the given key is a prefix key (leads to a branch node).
     pub fn is_prefix_key(&self, key: K) -> bool
     where
         K: PartialEq,
@@ -229,7 +250,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             .any(|c| c.key == key && c.node.is_branch())
     }
 
-    #[must_use]
+    /// Returns all bindings visible in the given scope as display bindings.
     pub fn get_bindings_for_scope(&self, scope: S) -> Vec<DisplayBinding<K, C>>
     where
         K: Clone,
@@ -305,6 +326,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Returns bindings grouped by category for the given scope.
     #[must_use]
     pub fn bindings_for_scope(&self, scope: S) -> Vec<BindingGroup<K>>
     where
@@ -335,6 +357,9 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             .collect()
     }
 
+    /// Returns child bindings at the given key path.
+    ///
+    /// Returns `None` if the path leads to a leaf node or doesn't exist.
     #[must_use]
     pub fn children_at_path(&self, keys: &[K]) -> Option<Vec<Binding<K>>>
     where
@@ -348,6 +373,13 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         })
     }
 
+    /// Navigates to the given key path and returns the result.
+    ///
+    /// Returns `None` if the path doesn't exist.
+    ///
+    /// Returns [`NodeResult::Branch`] with children for branch nodes.
+    ///
+    /// Returns [`NodeResult::Leaf`] with the action for leaf nodes.
     #[must_use]
     pub fn navigate(&self, keys: &[K]) -> Option<NodeResult<K, A>>
     where
@@ -371,6 +403,10 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
+    /// Sets a description for a prefix key group.
+    ///
+    /// Creates a branch node at the prefix path if it doesn't exist,
+    /// or updates the description of an existing placeholder ("...").
     pub fn describe_group(&mut self, prefix: &str, description: &'static str) -> &mut Self
     where
         K: Clone,
@@ -511,6 +547,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         self
     }
 
+    /// Creates a scope builder for adding bindings within a specific scope.
     pub fn scope<F>(&mut self, scope: S, bindings: F) -> &mut Self
     where
         F: FnOnce(&mut ScopeBuilder<K, S, A, C>),
@@ -520,6 +557,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         self
     }
 
+    /// Creates a category builder for adding bindings within a specific category.
     pub fn category<F>(&mut self, category: C, bindings: F) -> &mut Self
     where
         F: FnOnce(&mut CategoryBuilder<'_, K, S, A, C>),
@@ -529,6 +567,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         self
     }
 
+    /// Creates a combined scope and category builder for adding bindings.
     pub fn scope_and_category<F>(&mut self, scope: S, category: C, bindings: F) -> &mut Self
     where
         F: FnOnce(&mut ScopeAndCategoryBuilder<'_, K, S, A, C>),
