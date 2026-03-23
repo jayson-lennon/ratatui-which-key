@@ -457,7 +457,7 @@ mod tests {
     fn handle_key_with_custom_leader_triggers_action() {
         // Given a keymap with a custom leader key 'a'.
         let mut keymap: Keymap<TestKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(TestKey::Char('a'));
+            Keymap::new().with_leader(TestKey::Char('a'));
 
         // And binding <leader>gg to Quit.
         keymap.bind(

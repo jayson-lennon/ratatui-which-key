@@ -71,7 +71,7 @@ enum Action {
 
 #[rustfmt::skip]
 fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
-    let mut keymap = Keymap::new();
+    let mut keymap = Keymap::default();
 
     // Normal mode: .scope_and_category() for General bindings
     keymap.scope_and_category(Scope::Normal, Category::General, |g| {

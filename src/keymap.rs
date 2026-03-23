@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{
-    parse_key_sequence, state::CatchAllHandler, Binding, BindingGroup, CategoryBuilder,
-    DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry, NodeResult,
-    ScopeAndCategoryBuilder, ScopeBuilder,
+    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
+    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
+    state::CatchAllHandler,
 };
 
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
@@ -73,21 +73,20 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         keymap
     }
 
-    /// Creates a new empty keymap with a custom leader key.
+    /// Sets a custom leader key for this keymap.
     #[must_use]
-    pub fn with_leader(leader_key: K) -> Self
+    pub fn with_leader(mut self, leader_key: K) -> Self
     where
         K: Clone,
         S: Clone,
         A: Clone,
+        C: Clone,
     {
-        let mut keymap = Self {
-            bindings: Vec::new(),
-            leader_key,
-            catch_all_handlers: BTreeMap::new(),
-        };
-        keymap.describe_group("<leader>", "<leader>");
-        keymap
+        let old_leader = self.leader_key.clone();
+        self.leader_key = leader_key.clone();
+        self.bindings.retain(|b| b.key != old_leader);
+        self.describe_group("<leader>", "<leader>");
+        self
     }
 
     /// Returns a reference to the leader key.
@@ -740,8 +739,8 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::keymap_with_binding;
     use crate::CrosstermKey;
+    use crate::test_utils::keymap_with_binding;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {
@@ -834,7 +833,7 @@ mod tests {
 
         // When creating a keymap with a custom leader key.
         let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Esc);
+            Keymap::new().with_leader(CrosstermKey::Esc);
 
         // Then it uses the custom leader and has leader group binding.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Esc);
@@ -845,7 +844,7 @@ mod tests {
     fn bind_with_leader_resolves_to_custom_leader_key() {
         // Given a keymap with a custom leader key.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
 
         // When binding <leader>gg.
         keymap.bind(
@@ -880,7 +879,7 @@ mod tests {
     fn navigate_with_custom_leader_key() {
         // Given a keymap with a custom leader key 'a'.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
 
         // And binding <leader>gg to Quit.
         keymap.bind(
@@ -925,7 +924,7 @@ mod tests {
     fn scope_and_category_bind_with_custom_leader() {
         // Given a keymap with a custom leader key 'a'.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
 
         // And binding <leader>gg to Quit using scope_and_category builder.
         keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
@@ -967,7 +966,7 @@ mod tests {
     fn demo_setup_with_custom_leader_and_zxc() {
         // Given a keymap with a custom leader key 'a'.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
 
         // And binding both <leader>gg to Quit and zxc to Save.
         keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
@@ -1011,7 +1010,7 @@ mod tests {
     fn navigate_with_normal_scope_and_custom_leader() {
         // Given a keymap with a custom leader key 'a'.
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
 
         // And binding <leader>gg to Quit using Normal scope.
         keymap.scope_and_category(TestScope::Normal, TestCategory::Navigation, |g| {
@@ -2259,7 +2258,7 @@ mod tests {
     fn branch_preserves_children_when_adding_leaf_in_different_scope() {
         // Given bindings "<leader>gg" in Normal scope and "a" in Insert scope
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('a'));
+            Keymap::new().with_leader(CrosstermKey::Char('a'));
         keymap.bind(
             "<leader>gg",
             TestAction::Quit,
@@ -2291,7 +2290,7 @@ mod tests {
     fn leader_key_can_appear_in_sequence() {
         // Given leader='b' and binding "<leader>abc"
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
-            Keymap::with_leader(CrosstermKey::Char('b'));
+            Keymap::new().with_leader(CrosstermKey::Char('b'));
         keymap.bind(
             "<leader>abc",
             TestAction::Quit,
