@@ -114,7 +114,7 @@ where
         }
 
         self.current_sequence.push(key.clone());
-        match self.keymap.navigate(&self.current_sequence) {
+        match self.keymap.navigate(&self.current_sequence, &self.scope) {
             Some(NodeResult::Branch { .. }) => {
                 self.active = true;
                 KeyResult { action: None }

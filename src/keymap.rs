@@ -397,10 +397,11 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     ///
     /// Returns [`NodeResult::Leaf`] with the action for leaf nodes.
     #[must_use]
-    pub fn navigate(&self, keys: &[K]) -> Option<NodeResult<K, A>>
+    pub fn navigate(&self, keys: &[K], scope: &S) -> Option<NodeResult<K, A>>
     where
         K: Clone + PartialEq,
         A: Clone,
+        S: PartialEq,
     {
         let node = self.get_node_at_path(keys)?;
         match node {
@@ -413,7 +414,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     })
                     .collect(),
             }),
-            KeyNode::Leaf(entries) => entries.first().map(|e| NodeResult::Leaf {
+            KeyNode::Leaf(entries) => entries.iter().find(|e| &e.scope == scope).map(|e| NodeResult::Leaf {
                 action: e.action.clone(),
             }),
         }
