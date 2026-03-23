@@ -20,7 +20,7 @@ There is also a [sample application](examples/demo.rs) that you can run with `ca
 The _scope_ is what part of your application is currently "in focus":
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Scope {
     Global,
     TextInputBox,
