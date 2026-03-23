@@ -108,7 +108,7 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
             .bind("O", Action::NewLineAbove, Category::General)
             .bind("?", Action::ToggleHelp, Category::General)
             .catch_all(|key: &CrosstermKey| {
-                    Some(Action::InsertModeKey(key.clone()))
+                    Some(Action::InsertModeKey(key))
                 });
     });
 
