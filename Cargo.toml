@@ -7,7 +7,7 @@ license = "AGPL-3.0-or-later"
 repository = "https://github.com/jayson-lennon/ratatui-which-key"
 keywords = ["ratatui", "input", "tui", "terminal"]
 categories = ["command-line-interface"]
-exclude = ["/media", "AGENTS.md", "justfile"]
+exclude = ["/media", "AGENTS.md", "justfile", "release.toml"]
 readme = "README.md"
 
 [features]
