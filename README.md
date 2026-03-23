@@ -37,35 +37,18 @@ app.which_key.set_scope(Scope::Insert)
 `ratatui-which-key` returns an `Action` when a keybind is triggered:
 
 ```rust
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Must implement Display to show the names in the which-key popup.
+#[derive(derive_more::Display, Debug, Clone, Copy, PartialEq, Eq)]
 enum Action {
+    #[display("quit")]
     Quit,
+    #[display("toggle help")]
     ToggleHelp,
+    #[display("move up")]
     MoveUp,
+    #[display("save")]
     Save,
     // ...
-}
-
-// Must implement Display to show descriptions in the which-key popup.
-impl std::fmt::Display for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Action::Quit => write!(f, "quit"),
-            Action::ToggleHelp => write!(f, "toggle help"),
-            Action::MoveUp => write!(f, "move up"),
-            Action::Save => write!(f, "save"),
-       }
-    }
-}
-
-// In your input event loop:
-if let Some(action) = app.which_key.handle_key(key).action {
-    match action {
-        Action::Quit => app.should_quit = true,
-        Action::ToggleHelp => app.which_key.toggle(),
-        Action::MoveUp => (), // whatever you want to happen
-        Action::Save => (),
-   }
 }
 ```
 
@@ -74,7 +57,7 @@ if let Some(action) = app.which_key.handle_key(key).action {
 The `ratatui-which-key` popup displays a header for each category available for a scope and then lists the associated keybinds under that category.
 
 ```rust
-// Must implement Display to show the category names.
+// Must implement Display to show the category names in the which-key popup.
 #[derive(derive_more::Display, Debug, Clone, Copy, PartialEq, Eq)]
 enum Category {
     General,
@@ -90,6 +73,7 @@ You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at t
 
 ```rust
 struct App {
+    // `Scope`, `Action`, and `Category` are all types defined in your application.
     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
 }
 
@@ -99,7 +83,7 @@ keymap
     .bind("?", Action::ToggleHelp, Category::General, Scope::Global)
     // Sequences are supported. This binds to sequence "sg".
     .bind("sg", Action::SearchGrep, Category::General, Scope::Global)
-    // "describe_group" used to add a description to groups. Display will default to "..." if
+    // "describe_group" adds a description to groups. Display will default to "..." if
     // no group description is found.
     .describe_group("<space>", "<leader>") // (key sequence, description)
     .describe_group("<leader>g", "general")
@@ -152,7 +136,25 @@ keymap
 app.which_key = WhichKeyState::new(keymap, Scope::Global);
 ```
 
-Finally, to render:
+## Key Routing / Input Handling
+
+To route keys to `ratatui-which-key`:
+
+```rust
+// In your input event loop:
+if let Some(action) = app.which_key.handle_key(key).action {
+    match action {
+        Action::Quit => app.should_quit = true,
+        Action::ToggleHelp => app.which_key.toggle(),
+        Action::MoveUp => (), // whatever you want to happen
+        Action::Save => (),
+   }
+}
+```
+
+## Rendering
+
+To render:
 
 ```rust
 // (in your top-level render function)
