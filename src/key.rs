@@ -49,7 +49,7 @@ pub trait Key: Clone + PartialEq + Eq + Send + Sync + 'static {
 
 /// A key representation for the crossterm backend.
 #[cfg(feature = "crossterm")]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CrosstermKey {
     Char(char),
     Tab,
