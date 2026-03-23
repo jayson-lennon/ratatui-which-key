@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -28,7 +28,7 @@ use ratatui::{
 use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
 use std::io;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Scope {
     Global,
     Insert,
@@ -42,7 +42,7 @@ enum Category {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Action {
     Quit,
     ToggleHelp,
@@ -55,6 +55,7 @@ enum Action {
     Delete,
     NewLineBelow,
     NewLineAbove,
+    InsertModeKey(CrosstermKey),
 }
 
 impl std::fmt::Display for Action {
@@ -71,6 +72,7 @@ impl std::fmt::Display for Action {
             Action::Delete => write!(f, "delete"),
             Action::NewLineBelow => write!(f, "new line below"),
             Action::NewLineAbove => write!(f, "new line above"),
+            Action::InsertModeKey(k) => write!(f, "key: {k}"),
         }
     }
 }
@@ -103,7 +105,11 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
             .bind("a", Action::Append, Category::General)
             .bind("x", Action::Delete, Category::General)
             .bind("o", Action::NewLineBelow, Category::General)
-            .bind("O", Action::NewLineAbove, Category::General);
+            .bind("O", Action::NewLineAbove, Category::General)
+            .bind("?", Action::ToggleHelp, Category::General)
+            .catch_all(|key: &CrosstermKey| {
+                    Some(Action::InsertModeKey(key.clone()))
+                });
     });
 
     keymap
@@ -164,6 +170,7 @@ impl App {
             }
             Action::NewLineBelow => "Inserted line below".to_string(),
             Action::NewLineAbove => "Inserted line above".to_string(),
+            Action::InsertModeKey(k) => format!("typed: {k:?}"),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {

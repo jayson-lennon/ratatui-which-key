@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -39,6 +39,20 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
     {
         self.keymap
             .bind(sequence, action, category, self.scope.clone());
+        self
+    }
+
+    /// Register a catch-all handler for this scope.
+    ///
+    /// The handler is invoked when a key doesn't match any binding.
+    /// Returns `Some(action)` to dispatch an action, or `None` to dismiss.
+    pub fn catch_all<F>(&mut self, handler: F) -> &mut Self
+    where
+        F: Fn(&K) -> Option<A> + Send + Sync + 'static,
+        S: Clone + Ord,
+        C: Clone,
+    {
+        self.keymap.register_catch_all(self.scope.clone(), handler);
         self
     }
 }

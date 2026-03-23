@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -66,6 +66,28 @@ pub enum CrosstermKey {
     PageDown,
     F(u8),
     Ctrl(char),
+}
+
+impl std::fmt::Display for CrosstermKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CrosstermKey::Char(c) => write!(f, "{c}"),
+            CrosstermKey::Tab => write!(f, "Tab"),
+            CrosstermKey::Enter => write!(f, "Enter"),
+            CrosstermKey::Backspace => write!(f, "Backspace"),
+            CrosstermKey::Esc => write!(f, "Esc"),
+            CrosstermKey::Up => write!(f, "Up"),
+            CrosstermKey::Down => write!(f, "Down"),
+            CrosstermKey::Left => write!(f, "Left"),
+            CrosstermKey::Right => write!(f, "Right"),
+            CrosstermKey::Home => write!(f, "Home"),
+            CrosstermKey::End => write!(f, "End"),
+            CrosstermKey::PageUp => write!(f, "PageUp"),
+            CrosstermKey::PageDown => write!(f, "PageDown"),
+            CrosstermKey::F(num) => write!(f, "F{num}"),
+            CrosstermKey::Ctrl(c) => write!(f, "Ctrl+{c}"),
+        }
+    }
 }
 
 #[cfg(feature = "crossterm")]

@@ -60,7 +60,7 @@
 //! #     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
 //! # }
 //! # let mut app = App { which_key: WhichKeyState::new(Keymap::default(), Scope::Global) };
-//! #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+//! #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 //! enum Scope {
 //!     Global,
 //!     TextInputBox,
@@ -78,7 +78,7 @@
 //!
 //! ```
 //! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
-//! # #[derive(Debug, Clone, PartialEq)]
+//! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
 //! # #[derive(Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
@@ -178,7 +178,7 @@
 //! #         }
 //! #     }
 //! # }
-//! # #[derive(Debug, Clone, PartialEq)]
+//! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
 //! # #[derive(Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
@@ -248,7 +248,7 @@
 //! }
 //!
 //! // Define your scope type
-//! #[derive(Debug, Clone, PartialEq)]
+//! #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! enum Scope { Global, Insert }
 //!
 //! // Define keybind categories

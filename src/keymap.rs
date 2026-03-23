@@ -1,22 +1,28 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
 use crate::{
-    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
-    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
+    parse_key_sequence, Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key,
+    KeyChild, KeyNode, LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder,
 };
+
+/// Type alias for catch-all handler function.
+type CatchAllHandler<K, A> = Arc<dyn Fn(&K) -> Option<A> + Send + Sync>;
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
 ///
 /// The keymap stores bindings in a tree structure where multi-key sequences
@@ -28,10 +34,26 @@ use crate::{
 /// * `S` - The scope type for context-sensitive bindings
 /// * `A` - The action type triggered by key sequences
 /// * `C` - The category type for grouping bindings
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Keymap<K: Key, S, A, C> {
     bindings: Vec<KeyChild<K, S, A, C>>,
     leader_key: K,
+    catch_all_handlers: BTreeMap<S, CatchAllHandler<K, A>>,
+}
+
+impl<K: Key, S, A, C> std::fmt::Debug for Keymap<K, S, A, C>
+where
+    K: std::fmt::Debug,
+    S: std::fmt::Debug,
+    A: std::fmt::Debug,
+    C: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Keymap")
+            .field("bindings", &self.bindings)
+            .field("leader_key", &self.leader_key)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
@@ -41,6 +63,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         Self {
             bindings: Vec::new(),
             leader_key: K::space(),
+            catch_all_handlers: BTreeMap::new(),
         }
     }
 
@@ -50,6 +73,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         Self {
             bindings: Vec::new(),
             leader_key,
+            catch_all_handlers: BTreeMap::new(),
         }
     }
 
@@ -414,9 +438,14 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     })
                     .collect(),
             }),
-            KeyNode::Leaf(entries) => entries.iter().find(|e| &e.scope == scope).map(|e| NodeResult::Leaf {
-                action: e.action.clone(),
-            }),
+            KeyNode::Leaf(entries) => {
+                entries
+                    .iter()
+                    .find(|e| &e.scope == scope)
+                    .map(|e| NodeResult::Leaf {
+                        action: e.action.clone(),
+                    })
+            }
         }
     }
 
@@ -618,6 +647,23 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         bindings(&mut builder);
         self
     }
+
+    /// Register a catch-all handler for a scope.
+    ///
+    /// The handler is invoked when a key doesn't match any binding in the given scope.
+    /// Returns `Some(action)` to dispatch an action, or `None` to dismiss.
+    pub fn register_catch_all<F>(&mut self, scope: S, handler: F)
+    where
+        S: Ord,
+        F: Fn(&K) -> Option<A> + Send + Sync + 'static,
+    {
+        self.catch_all_handlers.insert(scope, Arc::new(handler));
+    }
+
+    /// Get all catch-all handlers.
+    pub fn catch_all_handlers(&self) -> &BTreeMap<S, CatchAllHandler<K, A>> {
+        &self.catch_all_handlers
+    }
 }
 
 impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
@@ -629,8 +675,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CrosstermKey;
     use crate::test_utils::keymap_with_binding;
+    use crate::CrosstermKey;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {

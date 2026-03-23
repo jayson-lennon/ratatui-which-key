@@ -1,25 +1,31 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
 use crate::{BindingGroup, Key, KeyResult, Keymap, NodeResult};
+
+/// Type alias for catch-all handler function.
+type CatchAllHandler<K, A> = Arc<dyn Fn(&K) -> Option<A> + Send + Sync>;
 
 /// State for the which-key widget.
 ///
 /// Holds all runtime data including the keymap, current scope,
 /// and pending key sequence.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct WhichKeyState<K, S, A, C>
 where
     K: Key,
@@ -34,6 +40,26 @@ where
     keymap: Keymap<K, S, A, C>,
     /// Cached bindings for the current scope.
     cached_bindings: Vec<BindingGroup<K>>,
+    /// Catch-all handlers per scope.
+    catch_all_handlers: BTreeMap<S, CatchAllHandler<K, A>>,
+}
+
+impl<K, S, A, C> std::fmt::Debug for WhichKeyState<K, S, A, C>
+where
+    K: Key + std::fmt::Debug,
+    S: std::fmt::Debug,
+    A: std::fmt::Debug,
+    C: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WhichKeyState")
+            .field("active", &self.active)
+            .field("current_sequence", &self.current_sequence)
+            .field("scope", &self.scope)
+            .field("keymap", &self.keymap)
+            .field("cached_bindings", &self.cached_bindings)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<K, S, A, C> WhichKeyState<K, S, A, C>
@@ -77,7 +103,7 @@ where
 impl<K, S, A, C> WhichKeyState<K, S, A, C>
 where
     K: Key + Clone + PartialEq,
-    S: Clone + PartialEq + Send + Sync,
+    S: Clone + Ord + PartialEq + Send + Sync,
     A: Clone + Send + Sync,
     C: Clone + std::fmt::Debug,
 {
@@ -85,12 +111,14 @@ where
     #[must_use]
     pub fn new(keymap: Keymap<K, S, A, C>, scope: S) -> Self {
         let cached_bindings = keymap.bindings_for_scope(scope.clone());
+        let catch_all_handlers = keymap.catch_all_handlers().clone();
         Self {
             active: false,
             current_sequence: Vec::new(),
             scope,
             keymap,
             cached_bindings,
+            catch_all_handlers,
         }
     }
 
@@ -125,8 +153,14 @@ where
                 KeyResult::with_action(action)
             }
             None => {
-                self.dismiss();
-                KeyResult { action: None }
+                if let Some(handler) = self.catch_all_handlers.get(&self.scope) {
+                    let action = handler(&key);
+                    self.dismiss();
+                    KeyResult { action }
+                } else {
+                    self.dismiss();
+                    KeyResult { action: None }
+                }
             }
         }
     }
@@ -188,7 +222,7 @@ mod tests {
         }
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
     enum TestScope {
         Global,
         Insert,
@@ -347,5 +381,73 @@ mod tests {
 
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
+    }
+
+    #[test]
+    fn catch_all_returns_action_for_unmatched_key() {
+        // Given a state with a catch-all handler for the scope.
+        let mut keymap = create_test_keymap();
+        keymap.register_catch_all(TestScope::Global, |key| {
+            if let TestKey::Char(_c) = key {
+                Some(TestAction::Save)
+            } else {
+                None
+            }
+        });
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+
+        // When pressing a key that doesn't match any binding.
+        let result = state.handle_key(TestKey::Char('x'));
+
+        // Then the catch-all handler returns an action.
+        assert!(result.has_action());
+        assert_eq!(result.action, Some(TestAction::Save));
+    }
+
+    #[test]
+    fn catch_all_returns_none_dismisses() {
+        // Given a state with a catch-all that returns None.
+        let mut keymap = create_test_keymap();
+        keymap.register_catch_all(TestScope::Global, |_key| None);
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        state.active = true;
+
+        // When pressing a key that doesn't match any binding.
+        let result = state.handle_key(TestKey::Char('x'));
+
+        // Then no action is returned and state is dismissed.
+        assert!(!result.has_action());
+        assert!(!state.active);
+    }
+
+    #[test]
+    fn no_catch_all_dismisses_on_unmatched() {
+        // Given a state without a catch-all handler.
+        let keymap = create_test_keymap();
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        state.active = true;
+
+        // When pressing a key that doesn't match any binding.
+        let result = state.handle_key(TestKey::Char('x'));
+
+        // Then no action is returned and state is dismissed.
+        assert!(!result.has_action());
+        assert!(!state.active);
+    }
+
+    #[test]
+    fn catch_all_only_applies_to_matching_scope() {
+        // Given a state with catch-all for Insert scope but currently in Global.
+        let mut keymap = create_test_keymap();
+        keymap.register_catch_all(TestScope::Insert, |_key| Some(TestAction::Save));
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        state.active = true;
+
+        // When pressing a key that doesn't match any binding.
+        let result = state.handle_key(TestKey::Char('x'));
+
+        // Then no action is returned (catch-all doesn't apply to Global scope).
+        assert!(!result.has_action());
+        assert!(!state.active);
     }
 }
