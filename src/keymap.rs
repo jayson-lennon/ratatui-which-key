@@ -335,16 +335,10 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             KeyNode::Leaf(entries) => entries
                 .iter()
                 .find(|e| &e.scope == scope)
-                .map(|e| e.category.clone())
-                .or_else(|| entries.first().map(|e| e.category.clone())),
+                .map(|e| e.category.clone()),
             KeyNode::Branch { children, .. } => children
                 .iter()
-                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope))
-                .or_else(|| {
-                    children
-                        .first()
-                        .and_then(|c| Self::find_category_in_children(&c.node, scope))
-                }),
+                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope)),
         }
     }
 
@@ -413,6 +407,19 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         })
     }
 
+    fn has_bindings_for_scope(node: &KeyNode<K, S, A, C>, scope: &S) -> bool
+    where
+        S: PartialEq,
+        C: Clone,
+    {
+        match node {
+            KeyNode::Leaf(entries) => entries.iter().any(|e| &e.scope == scope),
+            KeyNode::Branch { children, .. } => children
+                .iter()
+                .any(|c| Self::has_bindings_for_scope(&c.node, scope)),
+        }
+    }
+
     /// Navigates to the given key path and returns the result.
     ///
     /// Returns `None` if the path doesn't exist.
@@ -426,18 +433,25 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         K: Clone + PartialEq,
         A: Clone,
         S: PartialEq,
+        C: Clone,
     {
         let node = self.get_node_at_path(keys)?;
         match node {
-            KeyNode::Branch { children, .. } => Some(NodeResult::Branch {
-                children: children
-                    .iter()
-                    .map(|c| Binding {
-                        key: c.key.clone(),
-                        description: c.node.description(),
+            KeyNode::Branch { children, .. } => {
+                if Self::has_bindings_for_scope(node, scope) {
+                    Some(NodeResult::Branch {
+                        children: children
+                            .iter()
+                            .map(|c| Binding {
+                                key: c.key.clone(),
+                                description: c.node.description(),
+                            })
+                            .collect(),
                     })
-                    .collect(),
-            }),
+                } else {
+                    None
+                }
+            }
             KeyNode::Leaf(entries) => {
                 entries
                     .iter()
