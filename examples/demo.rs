@@ -41,39 +41,32 @@ enum Category {
     Navigation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, PartialEq, Eq)]
 enum Action {
+    #[display("quit")]
     Quit,
+    #[display("toggle help")]
     ToggleHelp,
+    #[display("go top")]
     GoTop,
+    #[display("go end")]
     GoEnd,
+    #[display("go down")]
     GoDown,
+    #[display("insert mode")]
     EnterInsert,
+    #[display("normal mode")]
     EnterNormal,
+    #[display("append")]
     Append,
+    #[display("delete")]
     Delete,
+    #[display("new line below")]
     NewLineBelow,
+    #[display("new line above")]
     NewLineAbove,
+    #[display("key: {_0}")]
     InsertModePrintableChar(char),
-}
-
-impl std::fmt::Display for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Action::Quit => write!(f, "quit"),
-            Action::ToggleHelp => write!(f, "toggle help"),
-            Action::GoTop => write!(f, "go top"),
-            Action::GoEnd => write!(f, "go end"),
-            Action::GoDown => write!(f, "go down"),
-            Action::EnterInsert => write!(f, "insert mode"),
-            Action::EnterNormal => write!(f, "normal mode"),
-            Action::Append => write!(f, "append"),
-            Action::Delete => write!(f, "delete"),
-            Action::NewLineBelow => write!(f, "new line below"),
-            Action::NewLineAbove => write!(f, "new line above"),
-            Action::InsertModePrintableChar(k) => write!(f, "key: {k}"),
-        }
-    }
 }
 
 #[rustfmt::skip]
