@@ -54,7 +54,7 @@
 //! #         }
 //! #     }
 //! # }
-//! # #[derive(Debug, Clone, PartialEq)]
+//! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! # struct App {
 //! #     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
@@ -80,7 +80,7 @@
 //! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
 //! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
-//! # #[derive(Debug, Clone, PartialEq)]
+//! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! # struct App {
 //! #     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
@@ -136,7 +136,7 @@
 //! The `ratatui-which-key` popup displays keybinds sorted by category:
 //!
 //! ```
-//! #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+//! #[derive(derive_more::Display, Debug, Clone, Copy, PartialEq, Eq)]
 //! enum Category {
 //!     General,
 //!     Navigation,
@@ -186,7 +186,7 @@
 //! # }
 //! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
-//! # #[derive(Debug, Clone, PartialEq)]
+//! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! struct App {
 //!     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
@@ -273,7 +273,7 @@
 //! enum Scope { Global, Insert }
 //!
 //! // Define keybind categories
-//! #[derive(Debug, Clone, PartialEq)]
+//! #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! enum Category { General, Navigation }
 //!
 //! // Build the keymap
