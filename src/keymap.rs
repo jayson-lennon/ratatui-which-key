@@ -58,22 +58,36 @@ where
 impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     /// Creates a new empty keymap with space as the leader key.
     #[must_use]
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Self
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+    {
+        let mut keymap = Self {
             bindings: Vec::new(),
             leader_key: K::space(),
             catch_all_handlers: BTreeMap::new(),
-        }
+        };
+        keymap.describe_group("<leader>", "<leader>");
+        keymap
     }
 
     /// Creates a new empty keymap with a custom leader key.
     #[must_use]
-    pub fn with_leader(leader_key: K) -> Self {
-        Self {
+    pub fn with_leader(leader_key: K) -> Self
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+    {
+        let mut keymap = Self {
             bindings: Vec::new(),
             leader_key,
             catch_all_handlers: BTreeMap::new(),
-        }
+        };
+        keymap.describe_group("<leader>", "<leader>");
+        keymap
     }
 
     /// Returns a reference to the leader key.
@@ -717,7 +731,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     }
 }
 
-impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
+impl<K: Key, S: Clone, A: Clone, C: Clone> Default for Keymap<K, S, A, C> {
     fn default() -> Self {
         Self::new()
     }
@@ -761,8 +775,13 @@ mod tests {
 
     fn get_leaf_entries<S: Clone + PartialEq, A: Clone, C: Clone + PartialEq>(
         keymap: &Keymap<CrosstermKey, S, A, C>,
+        key: CrosstermKey,
     ) -> Vec<(S, A, C, String)> {
-        let child = &keymap.bindings()[0];
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == key)
+            .expect("binding");
         if let KeyNode::Leaf(entries) = &child.node {
             entries
                 .iter()
@@ -782,8 +801,13 @@ mod tests {
 
     fn get_leaf_entry_count<S: Clone + PartialEq, A: Clone, C: Clone + PartialEq>(
         keymap: &Keymap<CrosstermKey, S, A, C>,
+        key: CrosstermKey,
     ) -> usize {
-        let child = &keymap.bindings()[0];
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == key)
+            .expect("binding");
         if let KeyNode::Leaf(entries) = &child.node {
             entries.len()
         } else {
@@ -799,9 +823,9 @@ mod tests {
         // When creating a new keymap.
         let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> = Keymap::new();
 
-        // Then it has a space leader key and no bindings.
+        // Then it has a space leader key and leader group binding.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Char(' '));
-        assert!(keymap.bindings().is_empty());
+        assert_eq!(keymap.bindings().len(), 1);
     }
 
     #[test]
@@ -812,9 +836,9 @@ mod tests {
         let keymap: Keymap<CrosstermKey, (), TestAction, TestCategory> =
             Keymap::with_leader(CrosstermKey::Esc);
 
-        // Then it uses the custom leader and has no bindings.
+        // Then it uses the custom leader and has leader group binding.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Esc);
-        assert!(keymap.bindings().is_empty());
+        assert_eq!(keymap.bindings().len(), 1);
     }
 
     #[test]
@@ -1035,9 +1059,9 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then a leaf node is created with the binding.
-        assert_eq!(keymap.bindings().len(), 1);
-        let child = &keymap.bindings()[0];
+        // Then a leaf node is created with the binding (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
+        let child = &keymap.bindings()[1];
         assert_eq!(child.key, CrosstermKey::Char('q'));
         assert!(matches!(child.node, KeyNode::Leaf(_)));
     }
@@ -1055,8 +1079,8 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then there is exactly one binding.
-        assert_eq!(keymap.bindings().len(), 1);
+        // Then there is exactly one binding (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -1072,8 +1096,13 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the root key is 'g'.
-        assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('g'));
+        // Then the root key is 'g' (find it, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
+        assert_eq!(child.key, CrosstermKey::Char('g'));
     }
 
     #[test]
@@ -1089,8 +1118,13 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the root node is a branch.
-        assert!(keymap.bindings()[0].node.is_branch());
+        // Then the root node is a branch (find 'g', not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
+        assert!(child.node.is_branch());
     }
 
     #[test]
@@ -1106,8 +1140,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the branch has one child.
-        let child = &keymap.bindings()[0];
+        // Then the branch has one child (find 'g', not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children.len(), 1);
         } else {
@@ -1128,8 +1166,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the second level key is 'g'.
-        let child = &keymap.bindings()[0];
+        // Then the second level key is 'g' (find 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children[0].key, CrosstermKey::Char('g'));
         } else {
@@ -1150,8 +1192,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the second level node is a leaf.
-        let child = &keymap.bindings()[0];
+        // Then the second level node is a leaf (find 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             assert!(matches!(children[0].node, KeyNode::Leaf(_)));
         } else {
@@ -1175,7 +1221,7 @@ mod tests {
             TestScope::Insert,
         );
 
-        let count = get_leaf_entry_count(&keymap);
+        let count = get_leaf_entry_count(&keymap, CrosstermKey::Esc);
 
         assert_eq!(count, 2);
     }
@@ -1196,7 +1242,7 @@ mod tests {
             TestScope::Insert,
         );
 
-        let entries = get_leaf_entries(&keymap);
+        let entries = get_leaf_entries(&keymap, CrosstermKey::Esc);
 
         assert_eq!(entries[0].0, TestScope::Global);
     }
@@ -1217,7 +1263,7 @@ mod tests {
             TestScope::Insert,
         );
 
-        let entries = get_leaf_entries(&keymap);
+        let entries = get_leaf_entries(&keymap, CrosstermKey::Esc);
 
         assert_eq!(entries[1].0, TestScope::Insert);
     }
@@ -1238,7 +1284,7 @@ mod tests {
             TestScope::Global,
         );
 
-        let count = get_leaf_entry_count(&keymap);
+        let count = get_leaf_entry_count(&keymap, CrosstermKey::Char('q'));
 
         assert_eq!(count, 1);
     }
@@ -1259,7 +1305,7 @@ mod tests {
             TestScope::Global,
         );
 
-        let entries = get_leaf_entries(&keymap);
+        let entries = get_leaf_entries(&keymap, CrosstermKey::Char('q'));
 
         assert_eq!(entries[0].1, TestAction::Save);
     }
@@ -1280,7 +1326,7 @@ mod tests {
             TestScope::Global,
         );
 
-        let entries = get_leaf_entries(&keymap);
+        let entries = get_leaf_entries(&keymap, CrosstermKey::Char('q'));
 
         assert_eq!(entries[0].3, "save");
     }
@@ -1301,15 +1347,16 @@ mod tests {
             TestScope::Global,
         );
 
-        let entries = get_leaf_entries(&keymap);
+        let entries = get_leaf_entries(&keymap, CrosstermKey::Char('q'));
 
         assert_eq!(entries[0].2, TestCategory::Navigation);
     }
 
     #[test]
     fn bind_empty_sequence_does_nothing() {
-        // Given an empty keymap.
+        // Given a keymap (which starts with a leader description).
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let initial_count = keymap.bindings().len();
 
         // When binding an empty sequence.
         keymap.bind(
@@ -1319,8 +1366,8 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then nothing is bound.
-        assert!(keymap.bindings().is_empty());
+        // Then nothing additional is bound.
+        assert_eq!(keymap.bindings().len(), initial_count);
     }
 
     #[test]
@@ -1342,8 +1389,8 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then there is still only one binding at the root.
-        assert_eq!(keymap.bindings().len(), 1);
+        // Then there is still only one binding at the root (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -1365,8 +1412,13 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the root key is 'g'.
-        assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('g'));
+        // Then the root key is 'g' (find it, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
+        assert_eq!(child.key, CrosstermKey::Char('g'));
     }
 
     #[test]
@@ -1388,8 +1440,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the branch has two children.
-        let child = &keymap.bindings()[0];
+        // Then the branch has two children (find the 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children.len(), 2);
         } else {
@@ -1416,8 +1472,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the branch includes the 'd' key.
-        let child = &keymap.bindings()[0];
+        // Then the branch includes the 'd' key (find the 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             let keys: Vec<_> = children.iter().map(|c| c.key).collect();
             assert!(keys.contains(&CrosstermKey::Char('d')));
@@ -1445,8 +1505,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the branch still includes the 'g' key.
-        let child = &keymap.bindings()[0];
+        // Then the branch still includes the 'g' key (find the 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             let keys: Vec<_> = children.iter().map(|c| c.key).collect();
             assert!(keys.contains(&CrosstermKey::Char('g')));
@@ -1475,9 +1539,13 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the leaf is converted to a branch.
-        assert_eq!(keymap.bindings().len(), 1);
-        let child = &keymap.bindings()[0];
+        // Then the leaf is converted to a branch (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         assert!(child.node.is_branch());
 
         if let KeyNode::Branch { children, .. } = &child.node {
@@ -1508,8 +1576,8 @@ mod tests {
                 TestScope::Global,
             );
 
-        // Then both bindings are added.
-        assert_eq!(keymap.bindings().len(), 2);
+        // Then both bindings are added (plus leader group).
+        assert_eq!(keymap.bindings().len(), 3);
     }
 
     #[test]
@@ -1556,10 +1624,10 @@ mod tests {
         // When getting children at an empty path.
         let result = keymap.get_children_at_path(&[]);
 
-        // Then root bindings are returned.
+        // Then root bindings are returned (plus leader group).
         assert!(result.is_some());
         let children = result.unwrap();
-        assert_eq!(children.len(), 2);
+        assert_eq!(children.len(), 3);
     }
 
     #[test]
@@ -1682,9 +1750,13 @@ mod tests {
         // When describing a prefix.
         keymap.describe_group("g", "go commands");
 
-        // Then a branch is created with the description.
-        assert_eq!(keymap.bindings().len(), 1);
-        let child = &keymap.bindings()[0];
+        // Then a branch is created with the description (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         assert_eq!(child.key, CrosstermKey::Char('g'));
         assert!(child.node.is_branch());
 
@@ -1716,8 +1788,12 @@ mod tests {
         // When describing the prefix.
         keymap.describe_group("g", "go commands");
 
-        // Then the description is updated.
-        let child = &keymap.bindings()[0];
+        // Then the description is updated (find the 'g' binding, not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         if let KeyNode::Branch { description, .. } = &child.node {
             assert_eq!(*description, "go commands");
         } else {
@@ -1730,7 +1806,7 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("a", "single command");
 
-        assert_eq!(keymap.bindings().len(), 1);
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -1738,7 +1814,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("a", "single command");
 
-        assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('a'));
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        assert_eq!(child.key, CrosstermKey::Char('a'));
     }
 
     #[test]
@@ -1746,7 +1827,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("a", "single command");
 
-        if let KeyNode::Branch { description, .. } = &keymap.bindings()[0].node {
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        if let KeyNode::Branch { description, .. } = &child.node {
             assert_eq!(*description, "single command");
         } else {
             panic!("expected branch node");
@@ -1770,7 +1856,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("abc", "nested command");
 
-        assert_eq!(keymap.bindings()[0].key, CrosstermKey::Char('a'));
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        assert_eq!(child.key, CrosstermKey::Char('a'));
     }
 
     #[test]
@@ -1778,7 +1869,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("abc", "nested command");
 
-        if let KeyNode::Branch { description, .. } = &keymap.bindings()[0].node {
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        if let KeyNode::Branch { description, .. } = &child.node {
             assert_eq!(*description, "nested command");
         } else {
             panic!("expected branch node at 'a'");
@@ -1790,7 +1886,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("abc", "nested command");
 
-        if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children[0].key, CrosstermKey::Char('b'));
         } else {
             panic!("expected branch node at 'a'");
@@ -1802,7 +1903,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("abc", "nested command");
 
-        if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        if let KeyNode::Branch { children, .. } = &child.node {
             if let KeyNode::Branch { children, .. } = &children[0].node {
                 assert_eq!(children[0].key, CrosstermKey::Char('c'));
             } else {
@@ -1818,7 +1924,12 @@ mod tests {
         let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("abc", "nested command");
 
-        if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('a'))
+            .expect("a binding");
+        if let KeyNode::Branch { children, .. } = &child.node {
             if let KeyNode::Branch { children, .. } = &children[0].node {
                 if let KeyNode::Branch { children, .. } = &children[0].node {
                     assert!(children.is_empty());
@@ -1846,8 +1957,12 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then the prefix is described and the binding is under it.
-        let child = &keymap.bindings()[0];
+        // Then the prefix is described and the binding is under it (find 'g', not leader).
+        let child = keymap
+            .bindings()
+            .iter()
+            .find(|c| c.key == CrosstermKey::Char('g'))
+            .expect("g binding");
         assert_eq!(child.key, CrosstermKey::Char('g'));
 
         if let KeyNode::Branch {
@@ -1872,8 +1987,8 @@ mod tests {
         // When describing an empty prefix.
         keymap.describe_group("", "empty");
 
-        // Then no bindings are created.
-        assert!(keymap.bindings().is_empty());
+        // Then no additional bindings are created (only leader group exists).
+        assert_eq!(keymap.bindings().len(), 1);
     }
 
     #[test]
@@ -1885,8 +2000,8 @@ mod tests {
         });
 
         // When checking bindings count.
-        // Then there is exactly one binding.
-        assert_eq!(keymap.bindings().len(), 1);
+        // Then there is exactly one binding (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -1973,8 +2088,8 @@ mod tests {
         });
 
         // When checking bindings count.
-        // Then there is exactly one binding.
-        assert_eq!(keymap.bindings().len(), 1);
+        // Then there is exactly one binding (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
@@ -2061,8 +2176,8 @@ mod tests {
         });
 
         // When checking bindings count.
-        // Then there is exactly one binding.
-        assert_eq!(keymap.bindings().len(), 1);
+        // Then there is exactly one binding (plus leader group).
+        assert_eq!(keymap.bindings().len(), 2);
     }
 
     #[test]
