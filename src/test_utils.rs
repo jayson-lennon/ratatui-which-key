@@ -14,19 +14,18 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #![allow(dead_code)]
-#[cfg(test)]
+use derive_more::Display;
+
 use crate::Key;
-#[cfg(test)]
+
 use crate::{Keymap, WhichKeyState};
 
-#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestKey {
     Char(char),
     Backspace,
 }
 
-#[cfg(test)]
 impl Key for TestKey {
     fn display(&self) -> String {
         match self {
@@ -48,7 +47,6 @@ impl Key for TestKey {
     }
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestAction {
     Quit,
@@ -56,7 +54,6 @@ pub enum TestAction {
     Open,
 }
 
-#[cfg(test)]
 impl std::fmt::Display for TestAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -67,7 +64,6 @@ impl std::fmt::Display for TestAction {
     }
 }
 
-#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestScope {
     Global,
@@ -75,14 +71,12 @@ pub enum TestScope {
     Normal,
 }
 
-#[cfg(test)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestCategory {
     General,
     Navigation,
 }
 
-#[cfg(test)]
 pub fn state_with_pending_keys<K, S, A, C>(
     keymap: Keymap<K, S, A, C>,
     keys: &[K],
@@ -92,7 +86,7 @@ where
     K: crate::Key + Clone + PartialEq,
     S: Clone + Ord + PartialEq + Send + Sync,
     A: Clone + Send + Sync,
-    C: Clone + std::fmt::Debug,
+    C: Clone + std::fmt::Display,
 {
     let mut state = WhichKeyState::new(keymap, scope);
     state.active = true;
@@ -100,7 +94,6 @@ where
     state
 }
 
-#[cfg(test)]
 pub fn state_with_binding_and_sequence<K, S, A, C>(
     key_sequence: &str,
     action: A,
@@ -112,17 +105,15 @@ where
     K: crate::Key + Clone,
     S: Clone + Ord + PartialEq + Send + Sync,
     A: Clone + Send + Sync + std::fmt::Display,
-    C: Clone + PartialEq + std::fmt::Debug,
+    C: Clone + PartialEq + std::fmt::Display,
 {
     let mut keymap = Keymap::new();
     keymap.bind(key_sequence, action, cat, scope.clone());
     state_with_pending_keys(keymap, pending_keys, scope)
 }
 
-#[cfg(test)]
 use crate::{CrosstermKey, KeyNode};
 
-#[cfg(test)]
 pub fn assert_leaf_entry<K, S, A, C>(
     node: Option<&KeyNode<K, S, A, C>>,
     expected_action: A,
@@ -148,7 +139,6 @@ pub fn assert_leaf_entry<K, S, A, C>(
     assert_eq!(entries[0].scope, expected_scope, "Scope mismatch");
 }
 
-#[cfg(test)]
 pub fn assert_branch_at_path<K, S, A, C>(
     keymap: &Keymap<K, S, A, C>,
     path: &[K],
@@ -178,7 +168,6 @@ pub fn assert_branch_at_path<K, S, A, C>(
     }
 }
 
-#[cfg(test)]
 pub fn assert_nth_child_is_branch<K, S, A, C>(
     parent: &KeyNode<K, S, A, C>,
     index: usize,
@@ -212,7 +201,6 @@ where
     &child.node
 }
 
-#[cfg(test)]
 pub fn assert_nth_child_is_leaf<K, S, A, C>(
     parent: &KeyNode<K, S, A, C>,
     index: usize,
@@ -255,7 +243,6 @@ pub fn assert_nth_child_is_leaf<K, S, A, C>(
     }
 }
 
-#[cfg(test)]
 pub fn keymap_with_binding<K, S, A, C>(
     keys: &str,
     action: A,
@@ -273,7 +260,6 @@ where
     keymap
 }
 
-#[cfg(test)]
 pub fn test_keymap_with_binding(
     key: &str,
     action: TestAction,
@@ -285,7 +271,6 @@ pub fn test_keymap_with_binding(
     keymap
 }
 
-#[cfg(test)]
 pub fn test_keymap_with_scope_binding(
     key: &str,
     action: TestAction,
@@ -299,7 +284,6 @@ pub fn test_keymap_with_scope_binding(
     keymap
 }
 
-#[cfg(test)]
 pub fn assert_leaf_key_and_action(
     keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
     path: &[CrosstermKey],
@@ -315,7 +299,6 @@ pub fn assert_leaf_key_and_action(
     assert_eq!(entries[0].action, expected_action);
 }
 
-#[cfg(test)]
 pub fn assert_leaf_entry_count(
     keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
     path: &[CrosstermKey],
@@ -331,7 +314,6 @@ pub fn assert_leaf_entry_count(
     assert_eq!(entries.len(), expected_count);
 }
 
-#[cfg(test)]
 pub fn assert_leaf_scope_at_index(
     keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
     path: &[CrosstermKey],
@@ -348,7 +330,6 @@ pub fn assert_leaf_scope_at_index(
     assert_eq!(entries[index].scope, expected_scope);
 }
 
-#[cfg(test)]
 pub fn assert_branch_child_key(
     keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
     path: &[CrosstermKey],
@@ -365,7 +346,6 @@ pub fn assert_branch_child_key(
     assert_eq!(children[child_index].key, expected_key);
 }
 
-#[cfg(test)]
 pub fn assert_branch_description(
     keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
     path: &[CrosstermKey],

@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -162,6 +162,9 @@
 //! #    OpenFile,
 //! #    SearchFiles,
 //! #    SearchBuffers,
+//! #    SearchGrep,
+//! #    InsertModePrintableChar(char),
+//! #    ToNormalMode
 //! # }
 //! #
 //! # impl std::fmt::Display for Action {
@@ -175,6 +178,9 @@
 //! #             Action::OpenFile => write!(f, "OpenFile"),
 //! #             Action::SearchFiles => write!(f, "SearchFiles"),
 //! #             Action::SearchBuffers => write!(f, "SearchBuffers"),
+//! #             Action::SearchGrep => write!(f, "SearchGrep"),
+//! #             Action::InsertModePrintableChar(k) => write!(f, "key: {k}"),
+//! #             Action::ToNormalMode => write!(f, "normal mode"),
 //! #         }
 //! #     }
 //! # }
@@ -188,43 +194,58 @@
 //!
 //! let mut keymap = Keymap::new();
 //! keymap
-//!     // "describe_group" is a way to set the name of a group explicitly
-//!     .describe_group("<space>", "<leader>")
-//!     // keys can be bound individually
+//!     // Keys can be bound individually by specifying both the category and scope.
 //!     .bind("?", Action::ToggleHelp, Category::General, Scope::Global)
-//!     .bind("j", Action::MoveDown, Category::Navigation, Scope::Global)
-//!     // control keys supported
-//!     .bind("<c-c>", Action::Quit, Category::General, Scope::Global)
-//!     // f-keys supported
-//!     .bind("<F1>", Action::ToggleHelp, Category::General, Scope::Global)
-//!     // sequences supported
-//!     .bind("<leader>w", Action::Save, Category::General, Scope::Global)
-//!     // sequences can start with any key
-//!     .bind("gof", Action::OpenFile, Category::General, Scope::Global)
-//!     // group configuration by prefix. No need to use `describe_group` when using this method.
+//!     // Sequences are supported. This binds to sequence "sg".
+//!     .bind("sg", Action::SearchGrep, Category::General, Scope::Global)
+//!     // "describe_group" used to add a description to groups. Display will default to "..." if
+//!     // no group description is found.
+//!     .describe_group("<space>", "<leader>") // (key sequence, description)
+//!     .describe_group("<leader>g", "general")
+//!     // Bindings can be added to a specific group while also providing a description.
 //!     .group("s", "search", |g| {
-//!         // bind to `sf`
+//!         // "sf" binding
 //!         g.bind("f", Action::SearchFiles, Category::General, Scope::SearchPanel)
-//!         // bind to `sb`
+//!          // "sb" binding
 //!          .bind("b", Action::SearchBuffers, Category::General, Scope::SearchPanel);
-//!      })
-//!      // automated scope association. No need to specify scope for each binding.
-//!      .scope(Scope::Global, |global| {
-//!          global
-//!              .bind("?", Action::ToggleHelp, Category::General)
-//!              .bind("j", Action::MoveDown, Category::Navigation);
-//!      })
-//!      // automated category association. No need to specify category for each binding.
-//!      .category(Category::Navigation, |nav| {
-//!          nav
-//!              .bind("k", Action::MoveUp, Scope::Global)
-//!              .bind("j", Action::MoveDown, Scope::Global);
-//!      })
-//!      // automated scope + category association.
-//!      .scope_and_category(Scope::Global, Category::Navigation, |g| {
-//!         g.bind("<leader>gg", Action::MoveUp)
-//!          .bind("<leader>gd", Action::MoveDown);
-//!      });
+//!     })
+//!     // However, using `.scope` is recommended in most cases since scopes represent whatever is
+//!     // currently "in focus" for your app.
+//!     .scope(Scope::Global, |global| {
+//!         global
+//!             .bind("?", Action::ToggleHelp, Category::General)
+//!             .bind("j", Action::MoveDown, Category::Navigation)
+//!             // control keys supported
+//!             .bind("<c-c>", Action::Quit, Category::General)
+//!             // f-keys supported
+//!             .bind("<F1>", Action::ToggleHelp, Category::General)
+//!             // sequences supported
+//!             .bind("<leader>w", Action::Save, Category::General)
+//!             // sequences can start with any key
+//!             .bind("gof", Action::OpenFile, Category::General);
+//!     })
+//!     .scope(Scope::Insert, |insert| {
+//!         // While in the `Insert` scope, all keys will be routed to this handler.
+//!         insert.catch_all(|key| {
+//!             // You can filter the keys here
+//!             match key {
+//!                 CrosstermKey::Char(ch) => Some(Action::InsertModePrintableChar(ch)),
+//!                 CrosstermKey::Esc => Some(Action::ToNormalMode),
+//!                 _ => None
+//!             }
+//!         });
+//!     })
+//!     // Helper method if you want to bind based on category.
+//!     .category(Category::Navigation, |nav| {
+//!         nav
+//!             .bind("k", Action::MoveUp, Scope::Global)
+//!             .bind("j", Action::MoveDown, Scope::Global);
+//!     })
+//!     // Helper method if you want to bind based on both scope and category.
+//!     .scope_and_category(Scope::Global, Category::Navigation, |g| {
+//!        g.bind("<leader>gg", Action::MoveUp)
+//!         .bind("<leader>gd", Action::MoveDown);
+//!     });
 //!
 //! let app = App { which_key: WhichKeyState::new(keymap, Scope::Global) };
 //!```
@@ -289,6 +310,7 @@ mod result;
 mod scope_and_category_builder;
 mod scope_builder;
 mod state;
+#[cfg(test)]
 mod test_utils;
 mod types;
 mod widget;

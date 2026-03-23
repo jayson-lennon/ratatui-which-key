@@ -18,7 +18,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
 };
 
-use crate::{render, Key, WhichKeyState};
+use crate::{Key, WhichKeyState, render};
 
 /// Position of the which-key popup on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -108,7 +108,7 @@ impl WhichKey {
         K: Key + Clone + PartialEq,
         S: Clone + Ord + PartialEq + Send + Sync,
         A: Clone + Send + Sync,
-        C: Clone + std::fmt::Debug,
+        C: Clone + std::fmt::Display,
     {
         if !state.active && state.current_sequence.is_empty() {
             return;

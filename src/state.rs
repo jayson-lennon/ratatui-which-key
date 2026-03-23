@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crate::{BindingGroup, Key, KeyResult, Keymap, NodeResult};
 
 /// Type alias for catch-all handler function.
-type CatchAllHandler<K, A> = Arc<dyn Fn(&K) -> Option<A> + Send + Sync>;
+pub type CatchAllHandler<K, A> = Arc<dyn Fn(K) -> Option<A> + Send + Sync>;
 
 /// State for the which-key widget.
 ///
@@ -105,7 +105,7 @@ where
     K: Key + Clone + PartialEq,
     S: Clone + Ord + PartialEq + Send + Sync,
     A: Clone + Send + Sync,
-    C: Clone + std::fmt::Debug,
+    C: Clone + std::fmt::Display,
 {
     /// Create new state with a keymap and initial scope.
     #[must_use]
@@ -154,7 +154,7 @@ where
             }
             None => {
                 if let Some(handler) = self.catch_all_handlers.get(&self.scope) {
-                    let action = handler(&key);
+                    let action = handler(key);
                     self.dismiss();
                     KeyResult { action }
                 } else {
@@ -200,9 +200,11 @@ where
 #[cfg(test)]
 mod tests {
     #![allow(dead_code)]
+    use derive_more::Display;
+
     use super::*;
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
     enum TestCategory {
         General,
     }

@@ -29,7 +29,9 @@ single_match_else = "allow"
 wildcard_imports = "allow"
 
 [dependencies]
-derive_more = { version = "2", features = ["debug", "display"] }
 ratatui = "0.30.0"
 tracing = "0.1"
 crossterm = { version = "0.29", optional = true }
+
+[dev-dependencies]
+derive_more = { version = "2", features = ["debug", "display"] }

@@ -48,7 +48,7 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
     /// Returns `Some(action)` to dispatch an action, or `None` to dismiss.
     pub fn catch_all<F>(&mut self, handler: F) -> &mut Self
     where
-        F: Fn(&K) -> Option<A> + Send + Sync + 'static,
+        F: Fn(K) -> Option<A> + Send + Sync + 'static,
         S: Clone + Ord,
         C: Clone,
     {

@@ -17,12 +17,11 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{
-    parse_key_sequence, Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key,
-    KeyChild, KeyNode, LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder,
+    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
+    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
+    state::CatchAllHandler,
 };
 
-/// Type alias for catch-all handler function.
-type CatchAllHandler<K, A> = Arc<dyn Fn(&K) -> Option<A> + Send + Sync>;
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
 ///
 /// The keymap stores bindings in a tree structure where multi-key sequences
@@ -367,14 +366,14 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         K: Clone,
         S: Clone + PartialEq,
         A: Clone,
-        C: Clone + std::fmt::Debug,
+        C: Clone + std::fmt::Display,
     {
         let bindings = self.get_bindings_for_scope(scope);
         let groups: std::collections::BTreeMap<String, Vec<Binding<K>>> = bindings
             .iter()
             .map(|b| {
                 (
-                    format!("{:?}", b.category),
+                    format!("{}", b.category),
                     Binding {
                         key: b.key.clone(),
                         description: b.description.clone(),
@@ -669,7 +668,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     pub fn register_catch_all<F>(&mut self, scope: S, handler: F)
     where
         S: Ord,
-        F: Fn(&K) -> Option<A> + Send + Sync + 'static,
+        F: Fn(K) -> Option<A> + Send + Sync + 'static,
     {
         self.catch_all_handlers.insert(scope, Arc::new(handler));
     }
@@ -689,8 +688,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::keymap_with_binding;
     use crate::CrosstermKey;
+    use crate::test_utils::keymap_with_binding;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {
@@ -1174,7 +1173,7 @@ mod tests {
         // Then the branch includes the 'd' key.
         let child = &keymap.bindings()[0];
         if let KeyNode::Branch { children, .. } = &child.node {
-            let keys: Vec<_> = children.iter().map(|c| c.key.clone()).collect();
+            let keys: Vec<_> = children.iter().map(|c| c.key).collect();
             assert!(keys.contains(&CrosstermKey::Char('d')));
         } else {
             panic!("expected branch node");
@@ -1203,7 +1202,7 @@ mod tests {
         // Then the branch still includes the 'g' key.
         let child = &keymap.bindings()[0];
         if let KeyNode::Branch { children, .. } = &child.node {
-            let keys: Vec<_> = children.iter().map(|c| c.key.clone()).collect();
+            let keys: Vec<_> = children.iter().map(|c| c.key).collect();
             assert!(keys.contains(&CrosstermKey::Char('g')));
         } else {
             panic!("expected branch node");
@@ -1424,7 +1423,7 @@ mod tests {
 
         // Then both branch and leaf bindings are included.
         assert_eq!(result.len(), 2);
-        let keys: Vec<_> = result.iter().map(|b| b.key.clone()).collect();
+        let keys: Vec<_> = result.iter().map(|b| b.key).collect();
         assert!(keys.contains(&CrosstermKey::Char('g')));
         assert!(keys.contains(&CrosstermKey::Char('q')));
     }

@@ -32,7 +32,7 @@ pub fn render_popup<K, S, A, C>(
     K: Key + Clone + PartialEq,
     S: Clone + Ord + PartialEq + Send + Sync,
     A: Clone + Send + Sync,
-    C: Clone + std::fmt::Debug,
+    C: Clone + std::fmt::Display,
 {
     let groups = state.current_bindings();
     if groups.is_empty() {

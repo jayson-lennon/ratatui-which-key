@@ -18,6 +18,7 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use derive_more::Display;
 use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
@@ -30,18 +31,16 @@ use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Scope {
-    Global,
+    Normal,
     Insert,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq)]
 enum Category {
     General,
     Navigation,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Action {
     Quit,
@@ -55,7 +54,7 @@ enum Action {
     Delete,
     NewLineBelow,
     NewLineAbove,
-    InsertModeKey(CrosstermKey),
+    InsertModePrintableChar(char),
 }
 
 impl std::fmt::Display for Action {
@@ -72,7 +71,7 @@ impl std::fmt::Display for Action {
             Action::Delete => write!(f, "delete"),
             Action::NewLineBelow => write!(f, "new line below"),
             Action::NewLineAbove => write!(f, "new line above"),
-            Action::InsertModeKey(k) => write!(f, "key: {k}"),
+            Action::InsertModePrintableChar(k) => write!(f, "key: {k}"),
         }
     }
 }
@@ -85,14 +84,14 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     keymap.describe_group("<space>", "<leader>");
 
     // Normal mode: .scope_and_category() for General bindings
-    keymap.scope_and_category(Scope::Global, Category::General, |g| {
+    keymap.scope_and_category(Scope::Normal, Category::General, |g| {
         g.bind("q", Action::Quit)
             .bind("?", Action::ToggleHelp)
             .bind("i", Action::EnterInsert);
     });
 
     // Normal mode: .scope_and_category() for Navigation bindings (sequences)
-    keymap.scope_and_category(Scope::Global, Category::Navigation, |g| {
+    keymap.scope_and_category(Scope::Normal, Category::Navigation, |g| {
         g.bind("<leader>gg", Action::GoTop)
             .bind("<leader>ge", Action::GoEnd)
             .bind("<leader>gd", Action::GoDown);
@@ -107,9 +106,15 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
             .bind("o", Action::NewLineBelow, Category::General)
             .bind("O", Action::NewLineAbove, Category::General)
             .bind("?", Action::ToggleHelp, Category::General)
-            .catch_all(|key: &CrosstermKey| {
-                    Some(Action::InsertModeKey(*key))
-                });
+            .catch_all(|key| {
+                // Any keys without a binding while in the Insert scope will get processed by this
+                // handler.
+                if let CrosstermKey::Char(ch) = key {
+                    Some(Action::InsertModePrintableChar(ch))
+                } else {
+                    None
+                }
+            });
     });
 
     keymap
@@ -126,7 +131,7 @@ impl App {
     fn new() -> Self {
         let keymap = create_keymap();
         Self {
-            which_key_state: WhichKeyState::new(keymap, Scope::Global),
+            which_key_state: WhichKeyState::new(keymap, Scope::Normal),
             position: 0,
             messages: vec!["Press ? to show keybindings".to_string()],
             running: true,
@@ -161,7 +166,7 @@ impl App {
             }
             Action::EnterNormal => {
                 self.which_key_state.dismiss();
-                self.which_key_state.set_scope(Scope::Global);
+                self.which_key_state.set_scope(Scope::Normal);
                 "Returned to Normal mode".to_string()
             }
             Action::Append => "Appended text".to_string(),
@@ -170,7 +175,7 @@ impl App {
             }
             Action::NewLineBelow => "Inserted line below".to_string(),
             Action::NewLineAbove => "Inserted line above".to_string(),
-            Action::InsertModeKey(k) => format!("typed: {k:?}"),
+            Action::InsertModePrintableChar(ch) => format!("typed: {ch}"),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {
@@ -208,7 +213,7 @@ fn ui(frame: &mut Frame, app: &mut App) {
     }
     lines.push(Line::raw(""));
     let mode = match app.which_key_state.scope() {
-        Scope::Global => "Normal",
+        Scope::Normal => "Normal",
         Scope::Insert => "Insert",
     };
     lines.push(Line::styled(
