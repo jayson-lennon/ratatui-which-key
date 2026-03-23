@@ -175,7 +175,7 @@ impl Key for CrosstermKey {
             "end" => Some(CrosstermKey::End),
             "pgup" | "pageup" => Some(CrosstermKey::PageUp),
             "pgdn" | "pagedown" => Some(CrosstermKey::PageDown),
-            "leader" | "space" => Some(CrosstermKey::Char(' ')),
+            "space" => Some(CrosstermKey::Char(' ')),
             s if s.starts_with('f') && s.len() > 1 => {
                 let num: u8 = s[1..].parse().ok()?;
                 if (1..=12).contains(&num) {
@@ -224,7 +224,7 @@ impl From<crossterm::event::KeyCode> for CrosstermKey {
 ///
 /// Panics if special character parsing fails when calling `chars.next().unwrap()`.
 /// This can occur if the iterator is empty after peeking a character.
-pub fn parse_key_sequence<K: Key>(s: &str) -> Vec<K> {
+pub fn parse_key_sequence<K: Key>(s: &str, leader: &K) -> Vec<K> {
     let mut keys = Vec::new();
     let mut chars = s.chars().peekable();
 
@@ -237,6 +237,10 @@ pub fn parse_key_sequence<K: Key>(s: &str) -> Vec<K> {
                     break;
                 }
                 special.push(chars.next().unwrap());
+            }
+            if special.eq_ignore_ascii_case("leader") {
+                keys.push(leader.clone());
+                continue;
             }
             if let Some(key) = K::from_special_name(&special) {
                 keys.push(key);
@@ -615,14 +619,10 @@ mod tests {
         }
 
         #[test]
-        fn from_special_name_parses_leader_and_space() {
-            // Given "leader" and "space" as special names.
+        fn from_special_name_parses_space() {
+            // Given "space" as a special name.
             // When parsing from special name.
-            // Then each returns a space character key.
-            assert_eq!(
-                CrosstermKey::from_special_name("leader"),
-                Some(CrosstermKey::Char(' '))
-            );
+            // Then it returns a space character key.
             assert_eq!(
                 CrosstermKey::from_special_name("space"),
                 Some(CrosstermKey::Char(' '))
@@ -663,7 +663,7 @@ mod tests {
             let input = "a";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns a vector with one character key.
             assert_eq!(keys, vec![CrosstermKey::Char('a')]);
@@ -675,7 +675,7 @@ mod tests {
             let input = "abc";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns a vector with character keys for each.
             assert_eq!(
@@ -694,7 +694,7 @@ mod tests {
             let input = "<enter>";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns a vector with the Enter key.
             assert_eq!(keys, vec![CrosstermKey::Enter]);
@@ -706,7 +706,7 @@ mod tests {
             let input = "<leader>m";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns a vector with space and character keys.
             assert_eq!(keys, vec![CrosstermKey::Char(' '), CrosstermKey::Char('m')]);
@@ -718,7 +718,7 @@ mod tests {
             let input = "";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns an empty vector.
             assert!(keys.is_empty());
@@ -730,7 +730,7 @@ mod tests {
             let input = "<ENTER>";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns the Enter key.
             assert_eq!(keys, vec![CrosstermKey::Enter]);
@@ -742,10 +742,36 @@ mod tests {
             let input = "<TAB>";
 
             // When parsing the key sequence.
-            let keys: Vec<CrosstermKey> = parse_key_sequence(input);
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char(' '));
 
             // Then it returns the Tab key.
             assert_eq!(keys, vec![CrosstermKey::Tab]);
+        }
+
+        #[test]
+        fn parse_key_sequence_resolves_custom_leader() {
+            let keys: Vec<CrosstermKey> = parse_key_sequence("<leader>m", &CrosstermKey::Esc);
+            assert_eq!(keys, vec![CrosstermKey::Esc, CrosstermKey::Char('m')]);
+        }
+
+        #[test]
+        fn parse_key_sequence_resolves_custom_leader_ch() {
+            // Given a string with multiple characters.
+            let input = "<leader>abc";
+
+            // When parsing the key sequence.
+            let keys: Vec<CrosstermKey> = parse_key_sequence(input, &CrosstermKey::Char('z'));
+
+            // Then it returns a vector with character keys for each.
+            assert_eq!(
+                keys,
+                vec![
+                    CrosstermKey::Char('z'),
+                    CrosstermKey::Char('a'),
+                    CrosstermKey::Char('b'),
+                    CrosstermKey::Char('c'),
+                ]
+            );
         }
     }
 }

@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -39,6 +39,8 @@ pub enum KeyNode<K: Key, S, A, C> {
         description: &'static str,
         /// Child key bindings.
         children: Vec<KeyChild<K, S, A, C>>,
+        /// Leaf entries for scopes where this key is a terminal action.
+        leaf_entries: Vec<LeafEntry<S, A, C>>,
     },
 }
 
@@ -49,7 +51,13 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
             KeyNode::Leaf(entries) => entries
                 .first()
                 .map_or(String::new(), |e| e.description.clone()),
-            KeyNode::Branch { description, .. } => description.to_string(),
+            KeyNode::Branch {
+                description,
+                leaf_entries,
+                ..
+            } => leaf_entries
+                .first()
+                .map_or(description.to_string(), |e| e.description.clone()),
         }
     }
 
@@ -128,6 +136,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
             node: KeyNode::Branch {
                 description,
                 children,
+                leaf_entries: Vec::new(),
             },
         }
     }

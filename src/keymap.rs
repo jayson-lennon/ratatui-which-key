@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{
-    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
-    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
-    state::CatchAllHandler,
+    parse_key_sequence, state::CatchAllHandler, Binding, BindingGroup, CategoryBuilder,
+    DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry, NodeResult,
+    ScopeAndCategoryBuilder, ScopeBuilder,
 };
 
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
@@ -96,7 +96,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         A: Clone + std::fmt::Display,
         C: Clone,
     {
-        let keys = parse_key_sequence(sequence);
+        let keys = parse_key_sequence(sequence, &self.leader_key);
         if keys.is_empty() {
             return self;
         }
@@ -170,13 +170,19 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                         });
                     }
                 }
-                KeyNode::Branch { .. } => {
-                    child.node = KeyNode::Leaf(vec![LeafEntry {
-                        action,
-                        description,
-                        category,
-                        scope,
-                    }]);
+                KeyNode::Branch { leaf_entries, .. } => {
+                    if let Some(existing) = leaf_entries.iter_mut().find(|e| e.scope == scope) {
+                        existing.action = action;
+                        existing.description = description;
+                        existing.category = category;
+                    } else {
+                        leaf_entries.push(LeafEntry {
+                            action,
+                            description,
+                            category,
+                            scope,
+                        });
+                    }
                 }
             }
             return;
@@ -184,11 +190,13 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
 
         let next_key = keys[1].clone();
         match &mut child.node {
-            KeyNode::Leaf(_) => {
+            KeyNode::Leaf(entries) => {
+                let existing_entries = std::mem::take(entries);
                 let new_child = Self::build_tree(&keys[1..], action, category, scope);
                 child.node = KeyNode::Branch {
                     description: "...",
                     children: vec![new_child],
+                    leaf_entries: existing_entries,
                 };
             }
             KeyNode::Branch { children, .. } => {
@@ -310,14 +318,26 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                             category: entry.category.clone(),
                         })
                 }
-                KeyNode::Branch { description, .. } => {
-                    Self::find_category_in_children(&child.node, &scope).map(|category| {
-                        DisplayBinding {
+                KeyNode::Branch {
+                    description,
+                    leaf_entries,
+                    ..
+                } => {
+                    if let Some(entry) = leaf_entries.iter().find(|e| e.scope == scope) {
+                        Some(DisplayBinding {
                             key: child.key.clone(),
-                            description: description.to_string(),
-                            category,
-                        }
-                    })
+                            description: entry.description.clone(),
+                            category: entry.category.clone(),
+                        })
+                    } else {
+                        Self::find_category_in_children(&child.node, &scope).map(|category| {
+                            DisplayBinding {
+                                key: child.key.clone(),
+                                description: description.to_string(),
+                                category,
+                            }
+                        })
+                    }
                 }
             })
             .collect()
@@ -413,9 +433,16 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     {
         match node {
             KeyNode::Leaf(entries) => entries.iter().any(|e| &e.scope == scope),
-            KeyNode::Branch { children, .. } => children
-                .iter()
-                .any(|c| Self::has_bindings_for_scope(&c.node, scope)),
+            KeyNode::Branch {
+                children,
+                leaf_entries,
+                ..
+            } => {
+                leaf_entries.iter().any(|e| &e.scope == scope)
+                    || children
+                        .iter()
+                        .any(|c| Self::has_bindings_for_scope(&c.node, scope))
+            }
         }
     }
 
@@ -436,8 +463,16 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     {
         let node = self.get_node_at_path(keys)?;
         match node {
-            KeyNode::Branch { children, .. } => {
-                if Self::has_bindings_for_scope(node, scope) {
+            KeyNode::Branch {
+                children,
+                leaf_entries,
+                ..
+            } => {
+                if let Some(entry) = leaf_entries.iter().find(|e| &e.scope == scope) {
+                    Some(NodeResult::Leaf {
+                        action: entry.action.clone(),
+                    })
+                } else if Self::has_bindings_for_scope(node, scope) {
                     Some(NodeResult::Branch {
                         children: children
                             .iter()
@@ -473,7 +508,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         A: Clone,
         C: Clone,
     {
-        let keys = parse_key_sequence(prefix);
+        let keys = parse_key_sequence(prefix, &self.leader_key);
         if keys.is_empty() {
             return self;
         }
@@ -530,6 +565,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 child.node = KeyNode::Branch {
                     description,
                     children: Vec::new(),
+                    leaf_entries: Vec::new(),
                 };
             }
         }
@@ -558,11 +594,13 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 child.node = KeyNode::Branch {
                     description,
                     children: vec![new_child],
+                    leaf_entries: Vec::new(),
                 };
             }
             KeyNode::Branch {
                 description: desc,
                 children,
+                ..
             } => {
                 if *desc == "..." {
                     *desc = description;
@@ -621,7 +659,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         C: Clone,
         F: FnOnce(&mut GroupBuilder<K, S, A, C>),
     {
-        let prefix_keys = parse_key_sequence(prefix);
+        let prefix_keys = parse_key_sequence(prefix, &self.leader_key);
         if prefix_keys.is_empty() {
             return self;
         }
@@ -688,8 +726,8 @@ impl<K: Key, S, A, C: Clone> Default for Keymap<K, S, A, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CrosstermKey;
     use crate::test_utils::keymap_with_binding;
+    use crate::CrosstermKey;
 
     #[derive(Debug, Clone, PartialEq)]
     enum TestAction {
@@ -777,6 +815,214 @@ mod tests {
         // Then it uses the custom leader and has no bindings.
         assert_eq!(keymap.leader_key(), &CrosstermKey::Esc);
         assert!(keymap.bindings().is_empty());
+    }
+
+    #[test]
+    fn bind_with_leader_resolves_to_custom_leader_key() {
+        // Given a keymap with a custom leader key.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+
+        // When binding <leader>gg.
+        keymap.bind(
+            "<leader>gg",
+            TestAction::Quit,
+            TestCategory::Navigation,
+            TestScope::Global,
+        );
+
+        // Then the binding exists at path ['a', 'g', 'g'] (not space).
+        assert_eq!(keymap.bindings().len(), 1);
+        let first = &keymap.bindings()[0];
+        assert_eq!(first.key, CrosstermKey::Char('a'));
+        if let KeyNode::Branch { children, .. } = &first.node {
+            assert_eq!(children.len(), 1);
+            let second = &children[0];
+            assert_eq!(second.key, CrosstermKey::Char('g'));
+            if let KeyNode::Branch { children, .. } = &second.node {
+                assert_eq!(children.len(), 1);
+                let third = &children[0];
+                assert_eq!(third.key, CrosstermKey::Char('g'));
+                assert!(matches!(third.node, KeyNode::Leaf(_)));
+            } else {
+                panic!("expected branch node at second level");
+            }
+        } else {
+            panic!("expected branch node at first level");
+        }
+    }
+
+    #[test]
+    fn navigate_with_custom_leader_key() {
+        // Given a keymap with a custom leader key 'a'.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+
+        // And binding <leader>gg to Quit.
+        keymap.bind(
+            "<leader>gg",
+            TestAction::Quit,
+            TestCategory::Navigation,
+            TestScope::Global,
+        );
+
+        // When navigating to ['a'].
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Global);
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g'].
+        let result = keymap.navigate(
+            &[CrosstermKey::Char('a'), CrosstermKey::Char('g')],
+            &TestScope::Global,
+        );
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g', 'g'].
+        let result = keymap.navigate(
+            &[
+                CrosstermKey::Char('a'),
+                CrosstermKey::Char('g'),
+                CrosstermKey::Char('g'),
+            ],
+            &TestScope::Global,
+        );
+        // Then it returns a Leaf with the Quit action.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn scope_and_category_bind_with_custom_leader() {
+        // Given a keymap with a custom leader key 'a'.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+
+        // And binding <leader>gg to Quit using scope_and_category builder.
+        keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
+            g.bind("<leader>gg", TestAction::Quit);
+        });
+
+        // When navigating to ['a'].
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Global);
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g'].
+        let result = keymap.navigate(
+            &[CrosstermKey::Char('a'), CrosstermKey::Char('g')],
+            &TestScope::Global,
+        );
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g', 'g'].
+        let result = keymap.navigate(
+            &[
+                CrosstermKey::Char('a'),
+                CrosstermKey::Char('g'),
+                CrosstermKey::Char('g'),
+            ],
+            &TestScope::Global,
+        );
+        // Then it returns a Leaf with the Quit action.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn demo_setup_with_custom_leader_and_zxc() {
+        // Given a keymap with a custom leader key 'a'.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+
+        // And binding both <leader>gg to Quit and zxc to Save.
+        keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
+            g.bind("<leader>gg", TestAction::Quit)
+                .bind("zxc", TestAction::Save);
+        });
+
+        // When checking the root-level bindings count.
+        // Then there are exactly two root-level bindings ('a' and 'z').
+        assert_eq!(keymap.bindings().len(), 2);
+
+        // When navigating to ['z'].
+        let result = keymap.navigate(&[CrosstermKey::Char('z')], &TestScope::Global);
+        // Then it returns a Branch (zxc works).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a'].
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Global);
+        // Then it returns a Branch (agg should work too).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g', 'g'].
+        let result = keymap.navigate(
+            &[
+                CrosstermKey::Char('a'),
+                CrosstermKey::Char('g'),
+                CrosstermKey::Char('g'),
+            ],
+            &TestScope::Global,
+        );
+        // Then it returns a Leaf with the Quit action.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn navigate_with_normal_scope_and_custom_leader() {
+        // Given a keymap with a custom leader key 'a'.
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+
+        // And binding <leader>gg to Quit using Normal scope.
+        keymap.scope_and_category(TestScope::Normal, TestCategory::Navigation, |g| {
+            g.bind("<leader>gg", TestAction::Quit);
+        });
+
+        // When navigating to ['a'].
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Normal);
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g'].
+        let result = keymap.navigate(
+            &[CrosstermKey::Char('a'), CrosstermKey::Char('g')],
+            &TestScope::Normal,
+        );
+        // Then it returns a Branch (not None).
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // When navigating to ['a', 'g', 'g'].
+        let result = keymap.navigate(
+            &[
+                CrosstermKey::Char('a'),
+                CrosstermKey::Char('g'),
+                CrosstermKey::Char('g'),
+            ],
+            &TestScope::Normal,
+        );
+        // Then it returns a Leaf with the Quit action.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
     }
 
     #[test]
@@ -1445,6 +1691,7 @@ mod tests {
         if let KeyNode::Branch {
             description,
             children,
+            ..
         } = &child.node
         {
             assert_eq!(*description, "go commands");
@@ -1606,6 +1853,7 @@ mod tests {
         if let KeyNode::Branch {
             description,
             children,
+            ..
         } = &child.node
         {
             assert_eq!(*description, "go commands");
@@ -1890,5 +2138,98 @@ mod tests {
         } else {
             panic!("expected leaf node");
         }
+    }
+
+    #[test]
+    fn branch_preserves_children_when_adding_leaf_in_different_scope() {
+        // Given bindings "<leader>gg" in Normal scope and "a" in Insert scope
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('a'));
+        keymap.bind(
+            "<leader>gg",
+            TestAction::Quit,
+            TestCategory::Navigation,
+            TestScope::Normal,
+        );
+        keymap.bind(
+            "a",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Insert,
+        );
+
+        // Then navigating to 'a' in Normal scope still returns Branch
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Normal);
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+
+        // And navigating to 'a' in Insert scope returns Leaf
+        let result = keymap.navigate(&[CrosstermKey::Char('a')], &TestScope::Insert);
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Save
+            })
+        ));
+    }
+
+    #[test]
+    fn leader_key_can_appear_in_sequence() {
+        // Given leader='b' and binding "<leader>abc"
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(CrosstermKey::Char('b'));
+        keymap.bind(
+            "<leader>abc",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        // Then "babc" triggers the action
+        let result = keymap.navigate(
+            &[
+                CrosstermKey::Char('b'),
+                CrosstermKey::Char('a'),
+                CrosstermKey::Char('b'),
+                CrosstermKey::Char('c'),
+            ],
+            &TestScope::Global,
+        );
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn same_key_leaf_in_one_scope_branch_in_another() {
+        // Given "x" as leaf in Insert and "xyz" as sequence in Normal
+        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "x",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Insert,
+        );
+        keymap.bind(
+            "xyz",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // Then 'x' in Insert triggers Save
+        let result = keymap.navigate(&[CrosstermKey::Char('x')], &TestScope::Insert);
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Save
+            })
+        ));
+
+        // And 'x' in Normal shows Branch (for xyz)
+        let result = keymap.navigate(&[CrosstermKey::Char('x')], &TestScope::Normal);
+        assert!(matches!(result, Some(NodeResult::Branch { .. })));
     }
 }

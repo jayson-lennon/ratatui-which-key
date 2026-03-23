@@ -73,9 +73,6 @@ enum Action {
 fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
     let mut keymap = Keymap::new();
 
-    // Leader prefix for sequences
-    keymap.describe_group("<space>", "<leader>");
-
     // Normal mode: .scope_and_category() for General bindings
     keymap.scope_and_category(Scope::Normal, Category::General, |g| {
         g.bind("q", Action::Quit)

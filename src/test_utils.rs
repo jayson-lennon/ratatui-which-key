@@ -157,6 +157,7 @@ pub fn assert_branch_at_path<K, S, A, C>(
         KeyNode::Branch {
             description,
             children,
+            ..
         } => {
             assert_eq!(*description, expected_description, "Description mismatch");
             assert!(

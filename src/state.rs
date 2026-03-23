@@ -452,4 +452,42 @@ mod tests {
         assert!(!result.has_action());
         assert!(!state.active);
     }
+
+    #[test]
+    fn handle_key_with_custom_leader_triggers_action() {
+        // Given a keymap with a custom leader key 'a'.
+        let mut keymap: Keymap<TestKey, TestScope, TestAction, TestCategory> =
+            Keymap::with_leader(TestKey::Char('a'));
+
+        // And binding <leader>gg to Quit.
+        keymap.bind(
+            "<leader>gg",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        // And a which-key state with the keymap and global scope.
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+
+        // When pressing the leader key 'a'.
+        let result = state.handle_key(TestKey::Char('a'));
+
+        // Then the popup is active and no action is triggered yet.
+        assert!(state.active);
+        assert!(result.action.is_none());
+
+        // When pressing 'g' (first g in the sequence).
+        let result = state.handle_key(TestKey::Char('g'));
+
+        // Then the popup is still active and no action is triggered yet.
+        assert!(state.active);
+        assert!(result.action.is_none());
+
+        // When pressing 'g' again (completing the sequence).
+        let result = state.handle_key(TestKey::Char('g'));
+
+        // Then the Quit action is triggered.
+        assert_eq!(result.action, Some(TestAction::Quit));
+    }
 }
