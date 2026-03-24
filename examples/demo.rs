@@ -15,19 +15,19 @@
 
 use crossterm::event::KeyEvent;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event},
+    event::{self, DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use derive_more::Display;
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
-    Frame, Terminal,
 };
-use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
+use ratatui_which_key::{CrosstermKeymapExt, CrosstermStateExt, Keymap, WhichKey, WhichKeyState};
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,6 +68,14 @@ enum Action {
     NewLineAbove,
     #[display("key: {_0}")]
     InsertModePrintableChar(char),
+    #[display("mouse click at ({_0}, {_1})")]
+    MouseClick(u16, u16),
+    #[display("resized to {_0}x{_1}")]
+    Resized(u16, u16),
+    #[display("terminal focused")]
+    Focused,
+    #[display("terminal unfocused")]
+    Unfocused,
 }
 
 #[rustfmt::skip]
@@ -108,6 +116,17 @@ fn create_keymap() -> Keymap<KeyEvent, Scope, Action, Category> {
     });
 
     keymap
+        .on_mouse(|event, _scope| {
+            use crossterm::event::{MouseButton, MouseEventKind};
+            if let MouseEventKind::Down(MouseButton::Left) = event.kind {
+                Some(Action::MouseClick(event.column, event.row))
+            } else {
+                None
+            }
+        })
+        .on_resize(|cols, rows, _scope| Some(Action::Resized(cols, rows)))
+        .on_focus_gained(|_scope| Some(Action::Focused))
+        .on_focus_lost(|_scope| Some(Action::Unfocused))
 }
 
 struct App {
@@ -166,16 +185,14 @@ impl App {
             Action::NewLineBelow => "Inserted line below".to_string(),
             Action::NewLineAbove => "Inserted line above".to_string(),
             Action::InsertModePrintableChar(ch) => format!("typed: {ch}"),
+            Action::MouseClick(x, y) => format!("Mouse clicked at ({x}, {y})"),
+            Action::Resized(cols, rows) => format!("Terminal resized to {cols}x{rows}"),
+            Action::Focused => "Terminal gained focus".to_string(),
+            Action::Unfocused => "Terminal lost focus".to_string(),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {
             self.messages.remove(0);
-        }
-    }
-
-    fn handle_key(&mut self, key: KeyEvent) {
-        if let Some(action) = self.which_key_state.handle_key(key).action {
-            self.handle_action(action);
         }
     }
 }
@@ -233,8 +250,10 @@ fn main() -> Result<(), io::Error> {
         terminal.draw(|f| ui(f, &mut app))?;
 
         if event::poll(std::time::Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                app.handle_key(key);
+            let event = event::read()?;
+            let result = app.which_key_state.handle_event(event);
+            if let Some(action) = result.into_action() {
+                app.handle_action(action);
             }
         }
     }
