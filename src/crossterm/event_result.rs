@@ -34,8 +34,8 @@ impl<A> EventResult<A> {
     /// Returns a reference to the action, if any.
     pub fn action(&self) -> Option<&A> {
         match self {
-            EventResult::Key(a) => a.as_ref(),
-            EventResult::Mouse(a)
+            EventResult::Key(a)
+            | EventResult::Mouse(a)
             | EventResult::Resize(a)
             | EventResult::FocusGained(a)
             | EventResult::FocusLost(a) => a.as_ref(),
@@ -51,8 +51,8 @@ impl<A> EventResult<A> {
     /// Converts into the action, if any.
     pub fn into_action(self) -> Option<A> {
         match self {
-            EventResult::Key(a) => a,
-            EventResult::Mouse(a)
+            EventResult::Key(a)
+            | EventResult::Mouse(a)
             | EventResult::Resize(a)
             | EventResult::FocusGained(a)
             | EventResult::FocusLost(a) => a,

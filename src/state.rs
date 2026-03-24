@@ -418,7 +418,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned and state is dismissed.
-        assert!(!result.is_some());
+        assert!(result.is_none());
         assert!(!state.active);
     }
 
@@ -433,7 +433,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned and state is dismissed.
-        assert!(!result.is_some());
+        assert!(result.is_none());
         assert!(!state.active);
     }
 
@@ -449,7 +449,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned (catch-all doesn't apply to Global scope).
-        assert!(!result.is_some());
+        assert!(result.is_none());
         assert!(!state.active);
     }
 
