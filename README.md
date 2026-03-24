@@ -144,7 +144,6 @@ app.which_key = WhichKeyState::new(keymap, Scope::Global);
 To route keys to `ratatui-which-key`:
 
 ```rust
-// Option 1: Handle only key events (existing approach)
 if let Some(action) = app.which_key.handle_key(key).action {
     match action {
         Action::Quit => app.should_quit = true,
@@ -153,8 +152,11 @@ if let Some(action) = app.which_key.handle_key(key).action {
         Action::Save => (),
    }
 }
+```
 
-// Option 2: Handle all event types (mouse, resize, focus)
+To handle all event types:
+
+```rust
 use ratatui_which_key::CrosstermStateExt;
 
 if let Some(action) = app.which_key.handle_event(event).into_action() {
@@ -169,15 +171,15 @@ if let Some(action) = app.which_key.handle_event(event).into_action() {
 
 ## Event Handlers
 
-You can register handlers for mouse, resize, and focus events on your keymap:
+You can register handlers for mouse, resize, and focus events on your keymap. The current `Scope` is provided as part of the handler, so you can choose to return actions globally or confine them to specific scopes:
 
 ```rust
 use ratatui_which_key::CrosstermKeymapExt;
 
 let mut keymap = Keymap::new();
 
-// Register handlers for mouse, resize, and focus events
 keymap
+    // `on_mouse` receives a `crossterm::event::MouseEvent` and the current scope
     .on_mouse(|event, scope| {
         use crossterm::event::{MouseButton, MouseEventKind};
         if let MouseEventKind::Down(MouseButton::Left) = event.kind {
@@ -186,9 +188,11 @@ keymap
             None
         }
     })
+    // `on_resize` receives the new terminal dimensions (cols, rows) and the current scope
     .on_resize(|cols, rows, scope| {
         Some(Action::Resized(cols, rows))
     })
+    // `on_focus_gained` and `on_focus_lost` receive the current scope
     .on_focus_gained(|scope| {
         Some(Action::Focused)
     })
@@ -196,12 +200,6 @@ keymap
         Some(Action::Unfocused)
     });
 ```
-
-- `on_mouse` receives a `crossterm::event::MouseEvent` and the current scope
-- `on_resize` receives the new terminal dimensions (cols, rows) and the current scope
-- `on_focus_gained` and `on_focus_lost` receive the current scope
-- All handlers return `Option<A>` (an action or None)
-- These handlers are scope-aware, allowing different behavior based on the current scope
 
 ## Rendering
 
