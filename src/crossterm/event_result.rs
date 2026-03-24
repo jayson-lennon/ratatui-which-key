@@ -37,10 +37,10 @@ impl<A> EventResult<A> {
     pub fn action(&self) -> Option<&A> {
         match self {
             EventResult::Key(kr) => kr.action.as_ref(),
-            EventResult::Mouse(a) => a.as_ref(),
-            EventResult::Resize(a) => a.as_ref(),
-            EventResult::FocusGained(a) => a.as_ref(),
-            EventResult::FocusLost(a) => a.as_ref(),
+            EventResult::Mouse(a)
+            | EventResult::Resize(a)
+            | EventResult::FocusGained(a)
+            | EventResult::FocusLost(a) => a.as_ref(),
             EventResult::Unhandled => None,
         }
     }
@@ -54,10 +54,10 @@ impl<A> EventResult<A> {
     pub fn into_action(self) -> Option<A> {
         match self {
             EventResult::Key(kr) => kr.action,
-            EventResult::Mouse(a) => a,
-            EventResult::Resize(a) => a,
-            EventResult::FocusGained(a) => a,
-            EventResult::FocusLost(a) => a,
+            EventResult::Mouse(a)
+            | EventResult::Resize(a)
+            | EventResult::FocusGained(a)
+            | EventResult::FocusLost(a) => a,
             EventResult::Unhandled => None,
         }
     }

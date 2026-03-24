@@ -41,7 +41,7 @@ impl Key for crossterm::event::KeyEvent {
             KeyCode::End => "End".to_string(),
             KeyCode::PageUp => "PageUp".to_string(),
             KeyCode::PageDown => "PageDown".to_string(),
-            KeyCode::F(n) => format!("F{}", n),
+            KeyCode::F(n) => format!("F{n}"),
             KeyCode::Null => "Null".to_string(),
             KeyCode::BackTab => "BackTab".to_string(),
             KeyCode::Delete => "Delete".to_string(),

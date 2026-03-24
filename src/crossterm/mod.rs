@@ -27,9 +27,5 @@ mod keymap_ext;
 mod state_ext;
 
 pub use event_result::EventResult;
-pub use handlers::{FocusHandler, MouseHandler, ResizeHandler};
 pub use keymap_ext::CrosstermKeymapExt;
 pub use state_ext::CrosstermStateExt;
-
-// Re-export crossterm event types for convenience
-pub use crossterm::event::{Event, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent};

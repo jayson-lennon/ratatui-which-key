@@ -55,21 +55,25 @@ where
     K: Key,
 {
     /// Register a handler for mouse events.
+    #[must_use]
     fn on_mouse<F>(self, handler: F) -> Self
     where
         F: Fn(crossterm::event::MouseEvent, &S) -> Option<A> + Send + Sync + 'static;
 
     /// Register a handler for resize events.
+    #[must_use]
     fn on_resize<F>(self, handler: F) -> Self
     where
         F: Fn(u16, u16, &S) -> Option<A> + Send + Sync + 'static;
 
     /// Register a handler for focus gained events.
+    #[must_use]
     fn on_focus_gained<F>(self, handler: F) -> Self
     where
         F: Fn(&S) -> Option<A> + Send + Sync + 'static;
 
     /// Register a handler for focus lost events.
+    #[must_use]
     fn on_focus_lost<F>(self, handler: F) -> Self
     where
         F: Fn(&S) -> Option<A> + Send + Sync + 'static;
