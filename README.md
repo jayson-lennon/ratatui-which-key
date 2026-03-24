@@ -139,22 +139,9 @@ keymap
 app.which_key = WhichKeyState::new(keymap, Scope::Global);
 ```
 
-## Key Routing / Input Handling
+## Input Handling
 
-To route keys to `ratatui-which-key`:
-
-```rust
-if let Some(action) = app.which_key.handle_key(key).action {
-    match action {
-        Action::Quit => app.should_quit = true,
-        Action::ToggleHelp => app.which_key.toggle(),
-        Action::MoveUp => (), // whatever you want to happen
-        Action::Save => (),
-   }
-}
-```
-
-To handle all event types:
+To route events to `ratatui-which-key`:
 
 ```rust
 use ratatui_which_key::CrosstermStateExt;
@@ -162,14 +149,15 @@ use ratatui_which_key::CrosstermStateExt;
 if let Some(action) = app.which_key.handle_event(event).into_action() {
     match action {
         Action::Quit => app.should_quit = true,
-        Action::MouseClick(x, y) => (), // handle mouse click
-        Action::Resized(cols, rows) => (), // handle resize
+        Action::ToggleHelp => app.which_key.toggle(),
+        Action::MoveUp => (), // whatever you want to happen
+        Action::Save => (),
         // ...
     }
 }
 ```
 
-## Event Handlers
+## Mouse and Terminal Event Handlers
 
 You can register handlers for mouse, resize, and focus events on your keymap. The current `Scope` is provided as part of the handler, so you can choose to return actions globally or confine them to specific scopes:
 
