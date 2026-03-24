@@ -1,3 +1,18 @@
+## [0.4.0] - 2026-03-24
+
+### 🚀 Features
+
+- Add support for terminal events and mouse
+- *(demo)* Add mouse, resize, and focus event handling
+- Consolidate return values into single type
+
+### 📚 Documentation
+
+- Document event handlers in README
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix clippy warnings
 ## [0.3.0] - 2026-03-23
 
 ### 🚀 Features
@@ -22,6 +37,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Set up automated releases
+- New version
 ## [0.2.1] - 2026-03-23
 
 ### 🐛 Bug Fixes
