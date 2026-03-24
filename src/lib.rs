@@ -295,10 +295,17 @@
 //! // Create state
 //! let mut state = WhichKeyState::new(keymap, Scope::Global);
 //!
-//! // In your event loop, handle keys
+//! // In your event loop, handle keys:
 //! # use crossterm::event::{KeyCode, KeyModifiers};
 //! # let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
-//! if let Some(action) = state.handle_key(key).action {
+//! if let Some(action) = state.handle_key(key) {
+//!     // dispatch action
+//! }
+//!
+//! // If handling more than keys (like mouse or terminal events):
+//! # let event = crossterm::event::Event::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()));
+//! use ratatui_which_key::CrosstermStateExt;
+//! if let Some(action) = state.handle_event(event).into_action() {
 //!     // dispatch action
 //! }
 //!
@@ -319,7 +326,7 @@ mod key;
 mod keymap;
 mod node;
 mod render;
-mod result;
+
 mod scope_and_category_builder;
 mod scope_builder;
 mod state;
@@ -337,7 +344,7 @@ pub use key::Key;
 pub use key::parse_key_sequence;
 pub use keymap::Keymap;
 pub use node::{KeyChild, KeyNode, LeafBinding, LeafEntry};
-pub use result::KeyResult;
+
 pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 pub use scope_builder::ScopeBuilder;
 pub use state::WhichKeyState;

@@ -13,13 +13,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::KeyResult;
-
 /// Result of handling a crossterm event.
 #[derive(Debug, Clone)]
 pub enum EventResult<A> {
     /// Key event was processed.
-    Key(KeyResult<A>),
+    Key(Option<A>),
     /// Mouse event was processed.
     Mouse(Option<A>),
     /// Resize event was processed.
@@ -36,7 +34,7 @@ impl<A> EventResult<A> {
     /// Returns a reference to the action, if any.
     pub fn action(&self) -> Option<&A> {
         match self {
-            EventResult::Key(kr) => kr.action.as_ref(),
+            EventResult::Key(a) => a.as_ref(),
             EventResult::Mouse(a)
             | EventResult::Resize(a)
             | EventResult::FocusGained(a)
@@ -53,7 +51,7 @@ impl<A> EventResult<A> {
     /// Converts into the action, if any.
     pub fn into_action(self) -> Option<A> {
         match self {
-            EventResult::Key(kr) => kr.action,
+            EventResult::Key(a) => a,
             EventResult::Mouse(a)
             | EventResult::Resize(a)
             | EventResult::FocusGained(a)

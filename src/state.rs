@@ -16,7 +16,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::{BindingGroup, Key, KeyResult, Keymap, NodeResult};
+use crate::{BindingGroup, Key, Keymap, NodeResult};
 
 /// Type alias for catch-all handler function.
 pub type CatchAllHandler<K, A> = Arc<dyn Fn(K) -> Option<A> + Send + Sync>;
@@ -132,34 +132,34 @@ where
     ///
     /// Returns a `KeyResult` indicating whether the key was consumed,
     /// an action should be dispatched, or the popup should be dismissed.
-    pub fn handle_key(&mut self, key: K) -> KeyResult<A> {
+    pub fn handle_key(&mut self, key: K) -> Option<A> {
         if key.is_backspace() {
             self.current_sequence.pop();
             if self.current_sequence.is_empty() {
                 self.dismiss();
             }
-            return KeyResult { action: None };
+            return None;
         }
 
         self.current_sequence.push(key.clone());
         match self.keymap.navigate(&self.current_sequence, &self.scope) {
             Some(NodeResult::Branch { .. }) => {
                 self.active = true;
-                KeyResult { action: None }
+                None
             }
             Some(NodeResult::Leaf { action }) => {
                 self.active = false;
                 self.current_sequence.clear();
-                KeyResult::with_action(action)
+                Some(action)
             }
             None => {
                 if let Some(handler) = self.catch_all_handlers.get(&self.scope) {
                     let action = handler(key);
                     self.dismiss();
-                    KeyResult { action }
+                    action
                 } else {
                     self.dismiss();
-                    KeyResult { action: None }
+                    None
                 }
             }
         }
@@ -363,7 +363,7 @@ mod tests {
         state.handle_key(TestKey::Char('q'));
         let result = state.handle_key(TestKey::Char('w'));
 
-        assert!(result.has_action());
+        assert!(result.is_some());
         assert!(!state.active);
         assert!(state.current_sequence.is_empty());
         assert_eq!(state.format_path(), "");
@@ -402,8 +402,8 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then the catch-all handler returns an action.
-        assert!(result.has_action());
-        assert_eq!(result.action, Some(TestAction::Save));
+        assert!(result.is_some());
+        assert_eq!(result, Some(TestAction::Save));
     }
 
     #[test]
@@ -418,7 +418,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned and state is dismissed.
-        assert!(!result.has_action());
+        assert!(!result.is_some());
         assert!(!state.active);
     }
 
@@ -433,7 +433,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned and state is dismissed.
-        assert!(!result.has_action());
+        assert!(!result.is_some());
         assert!(!state.active);
     }
 
@@ -449,7 +449,7 @@ mod tests {
         let result = state.handle_key(TestKey::Char('x'));
 
         // Then no action is returned (catch-all doesn't apply to Global scope).
-        assert!(!result.has_action());
+        assert!(!result.is_some());
         assert!(!state.active);
     }
 
@@ -475,19 +475,19 @@ mod tests {
 
         // Then the popup is active and no action is triggered yet.
         assert!(state.active);
-        assert!(result.action.is_none());
+        assert!(result.is_none());
 
         // When pressing 'g' (first g in the sequence).
         let result = state.handle_key(TestKey::Char('g'));
 
         // Then the popup is still active and no action is triggered yet.
         assert!(state.active);
-        assert!(result.action.is_none());
+        assert!(result.is_none());
 
         // When pressing 'g' again (completing the sequence).
         let result = state.handle_key(TestKey::Char('g'));
 
         // Then the Quit action is triggered.
-        assert_eq!(result.action, Some(TestAction::Quit));
+        assert_eq!(result, Some(TestAction::Quit));
     }
 }
