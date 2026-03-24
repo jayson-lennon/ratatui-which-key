@@ -69,12 +69,14 @@ enum Category {
 
 ## Keymap Configuration
 
-You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`. The code comments explain the different ways of performing keybindings.
+You'll need to put a `WhichKeyState<KeyEvent, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`. The code comments explain the different ways of performing keybindings.
 
 ```rust
+use crossterm::event::KeyEvent;
+
 struct App {
     // `Scope`, `Action`, and `Category` are all types defined in your application.
-    which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+    which_key: WhichKeyState<KeyEvent, Scope, Action, Category>,
 }
 
 let mut keymap = Keymap::new();
@@ -111,11 +113,12 @@ keymap
     })
     .scope(Scope::Insert, |insert| {
         // While in the `Insert` scope, all keys will be routed to this handler.
-        insert.catch_all(|key| {
+        insert.catch_all(|key: KeyEvent| {
+            use crossterm::event::{KeyCode, KeyModifiers};
             // You can filter the keys here
-            match key {
-                CrosstermKey::Char(ch) => Some(Action::InsertModePrintableChar(ch)),
-                CrosstermKey::Esc => Some(Action::ToNormalMode),
+            match key.code {
+                KeyCode::Char(ch) => Some(Action::InsertModePrintableChar(ch)),
+                KeyCode::Esc => Some(Action::ToNormalMode),
                 _ => None
             }
         });
@@ -141,7 +144,7 @@ app.which_key = WhichKeyState::new(keymap, Scope::Global);
 To route keys to `ratatui-which-key`:
 
 ```rust
-// In your input event loop:
+// Option 1: Handle only key events (existing approach)
 if let Some(action) = app.which_key.handle_key(key).action {
     match action {
         Action::Quit => app.should_quit = true,
@@ -150,7 +153,55 @@ if let Some(action) = app.which_key.handle_key(key).action {
         Action::Save => (),
    }
 }
+
+// Option 2: Handle all event types (mouse, resize, focus)
+use ratatui_which_key::CrosstermStateExt;
+
+if let Some(action) = app.which_key.handle_event(event).into_action() {
+    match action {
+        Action::Quit => app.should_quit = true,
+        Action::MouseClick(x, y) => (), // handle mouse click
+        Action::Resized(cols, rows) => (), // handle resize
+        // ...
+    }
+}
 ```
+
+## Event Handlers
+
+You can register handlers for mouse, resize, and focus events on your keymap:
+
+```rust
+use ratatui_which_key::CrosstermKeymapExt;
+
+let mut keymap = Keymap::new();
+
+// Register handlers for mouse, resize, and focus events
+keymap
+    .on_mouse(|event, scope| {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        if let MouseEventKind::Down(MouseButton::Left) = event.kind {
+            Some(Action::MouseClick(event.column, event.row))
+        } else {
+            None
+        }
+    })
+    .on_resize(|cols, rows, scope| {
+        Some(Action::Resized(cols, rows))
+    })
+    .on_focus_gained(|scope| {
+        Some(Action::Focused)
+    })
+    .on_focus_lost(|scope| {
+        Some(Action::Unfocused)
+    });
+```
+
+- `on_mouse` receives a `crossterm::event::MouseEvent` and the current scope
+- `on_resize` receives the new terminal dimensions (cols, rows) and the current scope
+- `on_focus_gained` and `on_focus_lost` receive the current scope
+- All handlers return `Option<A>` (an action or None)
+- These handlers are scope-aware, allowing different behavior based on the current scope
 
 ## Rendering
 
