@@ -112,7 +112,8 @@ where
     state_with_pending_keys(keymap, pending_keys, scope)
 }
 
-use crate::{CrosstermKey, KeyNode};
+use crate::KeyNode;
+use crossterm::event::KeyEvent;
 
 pub fn assert_leaf_entry<K, S, A, C>(
     node: Option<&KeyNode<K, S, A, C>>,
@@ -266,7 +267,7 @@ pub fn test_keymap_with_binding(
     action: TestAction,
     category: TestCategory,
     scope: TestScope,
-) -> Keymap<CrosstermKey, TestScope, TestAction, TestCategory> {
+) -> Keymap<KeyEvent, TestScope, TestAction, TestCategory> {
     let mut keymap = Keymap::new();
     keymap.bind(key, action, category, scope);
     keymap
@@ -277,7 +278,7 @@ pub fn test_keymap_with_scope_binding(
     action: TestAction,
     category: TestCategory,
     scope: TestScope,
-) -> Keymap<CrosstermKey, TestScope, TestAction, TestCategory> {
+) -> Keymap<KeyEvent, TestScope, TestAction, TestCategory> {
     let mut keymap = Keymap::new();
     keymap.scope(scope, |b| {
         b.bind(key, action, category);
@@ -286,8 +287,8 @@ pub fn test_keymap_with_scope_binding(
 }
 
 pub fn assert_leaf_key_and_action(
-    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
-    path: &[CrosstermKey],
+    keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
+    path: &[KeyEvent],
     expected_action: TestAction,
 ) {
     let node = keymap
@@ -301,8 +302,8 @@ pub fn assert_leaf_key_and_action(
 }
 
 pub fn assert_leaf_entry_count(
-    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
-    path: &[CrosstermKey],
+    keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
+    path: &[KeyEvent],
     expected_count: usize,
 ) {
     let node = keymap
@@ -316,8 +317,8 @@ pub fn assert_leaf_entry_count(
 }
 
 pub fn assert_leaf_scope_at_index(
-    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
-    path: &[CrosstermKey],
+    keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
+    path: &[KeyEvent],
     index: usize,
     expected_scope: TestScope,
 ) {
@@ -332,10 +333,10 @@ pub fn assert_leaf_scope_at_index(
 }
 
 pub fn assert_branch_child_key(
-    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
-    path: &[CrosstermKey],
+    keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
+    path: &[KeyEvent],
     child_index: usize,
-    expected_key: CrosstermKey,
+    expected_key: KeyEvent,
 ) {
     let node = keymap
         .get_node_at_path(path)
@@ -348,8 +349,8 @@ pub fn assert_branch_child_key(
 }
 
 pub fn assert_branch_description(
-    keymap: &Keymap<CrosstermKey, TestScope, TestAction, TestCategory>,
-    path: &[CrosstermKey],
+    keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
+    path: &[KeyEvent],
     expected_description: &str,
 ) {
     let node = keymap

@@ -92,14 +92,18 @@ mod tests {
     #![allow(dead_code)]
     use super::*;
     use crate::test_utils::{TestAction, TestCategory, TestScope};
-    use crate::{CrosstermKey, KeyNode};
+    use crate::KeyNode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn bind_combines_prefix_with_sequence() {
         // Given a keymap with a described prefix group.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("g", "goto");
-        let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
+        let mut builder = GroupBuilder::new(
+            &mut keymap,
+            vec![KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+        );
 
         // When binding under the prefix.
         builder.bind(
@@ -110,7 +114,10 @@ mod tests {
         );
 
         // Then the binding is at the combined path.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('h')]);
+        let node = keymap.get_node_at_path(&[
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty()),
+        ]);
         assert!(node.is_some());
 
         if let Some(KeyNode::Leaf(entries)) = node {
@@ -125,15 +132,21 @@ mod tests {
     #[test]
     fn describe_prefix_sets_nested_description() {
         // Given a keymap with a described prefix group.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("g", "goto");
-        let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
+        let mut builder = GroupBuilder::new(
+            &mut keymap,
+            vec![KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+        );
 
         // When adding a nested prefix description.
         builder.describe_prefix("c", "git commits");
 
         // Then the nested prefix has its description.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('c')]);
+        let node = keymap.get_node_at_path(&[
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty()),
+        ]);
         assert!(node.is_some());
 
         if let Some(KeyNode::Branch { description, .. }) = node {
@@ -146,9 +159,12 @@ mod tests {
     #[test]
     fn describe_creates_nested_group() {
         // Given a keymap with a described prefix group.
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.describe_group("g", "goto");
-        let mut builder = GroupBuilder::new(&mut keymap, vec![CrosstermKey::Char('g')]);
+        let mut builder = GroupBuilder::new(
+            &mut keymap,
+            vec![KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+        );
 
         // When creating a nested group with bindings.
         builder.describe("c", "git commands", |nested| {
@@ -167,8 +183,10 @@ mod tests {
         });
 
         // Then the nested prefix has its description and bindings.
-        let branch_node =
-            keymap.get_node_at_path(&[CrosstermKey::Char('g'), CrosstermKey::Char('c')]);
+        let branch_node = keymap.get_node_at_path(&[
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty()),
+        ]);
         assert!(branch_node.is_some());
 
         if let Some(KeyNode::Branch { description, .. }) = branch_node {
@@ -178,16 +196,16 @@ mod tests {
         }
 
         let leaf_l = keymap.get_node_at_path(&[
-            CrosstermKey::Char('g'),
-            CrosstermKey::Char('c'),
-            CrosstermKey::Char('l'),
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('l'), KeyModifiers::empty()),
         ]);
         assert!(leaf_l.is_some());
 
         let leaf_s = keymap.get_node_at_path(&[
-            CrosstermKey::Char('g'),
-            CrosstermKey::Char('c'),
-            CrosstermKey::Char('s'),
+            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty()),
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty()),
         ]);
         assert!(leaf_s.is_some());
     }

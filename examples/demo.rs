@@ -13,20 +13,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crossterm::event::KeyEvent;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use derive_more::Display;
 use ratatui::{
-    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
+    Frame, Terminal,
 };
-use ratatui_which_key::{CrosstermKey, Keymap, WhichKey, WhichKeyState};
+use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -70,7 +71,7 @@ enum Action {
 }
 
 #[rustfmt::skip]
-fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
+fn create_keymap() -> Keymap<KeyEvent, Scope, Action, Category> {
     let mut keymap = Keymap::default();
 
     // Normal mode: .scope_and_category() for General bindings
@@ -96,10 +97,9 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
             .bind("o", Action::NewLineBelow, Category::General)
             .bind("O", Action::NewLineAbove, Category::General)
             .bind("?", Action::ToggleHelp, Category::General)
-            .catch_all(|key| {
-                // Any keys without a binding while in the Insert scope will get processed by this
-                // handler.
-                if let CrosstermKey::Char(ch) = key {
+            .catch_all(|key: KeyEvent| {
+                use crossterm::event::KeyCode;
+                if let KeyCode::Char(ch) = key.code {
                     Some(Action::InsertModePrintableChar(ch))
                 } else {
                     None
@@ -111,7 +111,7 @@ fn create_keymap() -> Keymap<CrosstermKey, Scope, Action, Category> {
 }
 
 struct App {
-    which_key_state: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+    which_key_state: WhichKeyState<KeyEvent, Scope, Action, Category>,
     position: u32,
     messages: Vec<String>,
     running: bool,
@@ -173,7 +173,7 @@ impl App {
         }
     }
 
-    fn handle_key(&mut self, key: CrosstermKey) {
+    fn handle_key(&mut self, key: KeyEvent) {
         if let Some(action) = self.which_key_state.handle_key(key).action {
             self.handle_action(action);
         }
@@ -234,9 +234,7 @@ fn main() -> Result<(), io::Error> {
 
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                if let Some(crossterm_key) = CrosstermKey::from_keycode(key.code, key.modifiers) {
-                    app.handle_key(crossterm_key);
-                }
+                app.handle_key(key);
             }
         }
     }

@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -54,17 +54,19 @@ mod tests {
     #![allow(dead_code)]
     use super::*;
     use crate::test_utils::{TestAction, TestCategory, TestScope};
-    use crate::{CrosstermKey, KeyNode};
+    use crate::KeyNode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn bind_auto_applies_scope_and_category() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         let mut builder =
             ScopeAndCategoryBuilder::new(&mut keymap, TestScope::Global, TestCategory::Navigation);
 
         builder.bind("h", TestAction::Open);
 
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
         assert!(node.is_some());
 
         if let Some(KeyNode::Leaf(entries)) = node {
@@ -79,7 +81,7 @@ mod tests {
 
     #[test]
     fn chaining_works() {
-        let mut keymap: Keymap<CrosstermKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         let mut builder =
             ScopeAndCategoryBuilder::new(&mut keymap, TestScope::Insert, TestCategory::General);
 
@@ -88,9 +90,12 @@ mod tests {
             .bind("s", TestAction::Save)
             .bind("o", TestAction::Open);
 
-        let quit_node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
-        let save_node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
-        let open_node = keymap.get_node_at_path(&[CrosstermKey::Char('o')]);
+        let quit_node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())]);
+        let save_node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty())]);
+        let open_node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('o'), KeyModifiers::empty())]);
 
         assert!(quit_node.is_some());
         assert!(save_node.is_some());

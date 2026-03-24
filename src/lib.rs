@@ -27,7 +27,8 @@
 //! The _scope_ is what part of your application is currently "in focus":
 //!
 //! ```
-//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
+//! # use crossterm::event::KeyEvent;
+//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
 //! # #[derive(Debug, Clone)]
 //! # enum Action {
 //! #    Quit,
@@ -57,7 +58,7 @@
 //! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! # struct App {
-//! #     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+//! #     which_key: WhichKeyState<KeyEvent, Scope, Action, Category>,
 //! # }
 //! # let mut app = App { which_key: WhichKeyState::new(Keymap::default(), Scope::Global) };
 //! #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -77,13 +78,14 @@
 //! `ratatui-which-key` returns an `Action` when a keybind is triggered:
 //!
 //! ```
-//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
+//! # use crossterm::event::KeyEvent;
+//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
 //! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
 //! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! # struct App {
-//! #     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+//! #     which_key: WhichKeyState<KeyEvent, Scope, Action, Category>,
 //! # }
 //! # let mut app = App { which_key: WhichKeyState::new(Keymap::default(), Scope::Global) };
 //! #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -116,7 +118,8 @@
 //! }
 //!
 //! // In your input handler:
-//! # let key = CrosstermKey::Char('q');
+//! # use crossterm::event::{KeyCode, KeyModifiers};
+//! # let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
 //! if let Some(action) = app.which_key.handle_key(key).action {
 //!     match action {
 //!         Action::ToggleHelp => app.which_key.toggle(),
@@ -147,10 +150,11 @@
 //!
 //! ## Keymap Configuration
 //!
-//! You'll need to put a `WhichKeyState<CrosstermKey, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`. The code comments explain the different ways of performing keybindings.
+//! You'll need to put a `WhichKeyState<KeyEvent, Scope, Action, Category>` at the top-level of your application (like in `App`). Then at program start, configure your keybinds by creating a new `Keymap`. The code comments explain the different ways of performing keybindings.
 //!
 //! ```
-//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
+//! # use crossterm::event::KeyEvent;
+//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
 //! # // Define your action type
 //! # #[derive(Debug, Clone)]
 //! # enum Action {
@@ -189,7 +193,7 @@
 //! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
 //! # enum Category { General, Navigation, SearchPanel }
 //! struct App {
-//!     which_key: WhichKeyState<CrosstermKey, Scope, Action, Category>,
+//!     which_key: WhichKeyState<KeyEvent, Scope, Action, Category>,
 //! }
 //!
 //! let mut keymap = Keymap::new();
@@ -228,9 +232,16 @@
 //!         // While in the `Insert` scope, all keys will be routed to this handler.
 //!         insert.catch_all(|key| {
 //!             // You can filter the keys here
+//!             use crossterm::event::{KeyCode, KeyModifiers};
 //!             match key {
-//!                 CrosstermKey::Char(ch) => Some(Action::InsertModePrintableChar(ch)),
-//!                 CrosstermKey::Esc => Some(Action::ToNormalMode),
+//!                 k if matches!(k, KeyEvent { code: KeyCode::Char(_), .. }) => {
+//!                     if let KeyCode::Char(ch) = key.code {
+//!                         Some(Action::InsertModePrintableChar(ch))
+//!                     } else {
+//!                         None
+//!                     }
+//!                 }
+//!                 k if matches!(k, KeyEvent { code: KeyCode::Esc, .. }) => Some(Action::ToNormalMode),
 //!                 _ => None
 //!             }
 //!         });
@@ -253,7 +264,8 @@
 //! # Example
 //!
 //! ```
-//! use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermKey};
+//! use crossterm::event::KeyEvent;
+//! use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
 //!
 //! // Define your action type
 //! #[derive(Debug, Clone)]
@@ -277,14 +289,15 @@
 //! enum Category { General, Navigation }
 //!
 //! // Build the keymap
-//! let mut keymap: Keymap<CrosstermKey, Scope, Action, Category> = Keymap::new();
+//! let mut keymap: Keymap<KeyEvent, Scope, Action, Category> = Keymap::new();
 //! keymap.bind("q", Action::Quit, Category::General, Scope::Global);
 //!
 //! // Create state
 //! let mut state = WhichKeyState::new(keymap, Scope::Global);
 //!
 //! // In your event loop, handle keys
-//! # let key = CrosstermKey::Char('q');
+//! # use crossterm::event::{KeyCode, KeyModifiers};
+//! # let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
 //! if let Some(action) = state.handle_key(key).action {
 //!     // dispatch action
 //! }
@@ -298,7 +311,7 @@
 //!
 //! # Feature Flags
 //!
-//! - `crossterm` (default): Provides `CrosstermKey` implementation
+//! - `crossterm` (default): Provides `KeyEvent` implementation and event handlers
 
 mod category_builder;
 mod group_builder;
@@ -315,10 +328,13 @@ mod test_utils;
 mod types;
 mod widget;
 
+#[cfg(feature = "crossterm")]
+mod crossterm;
+
 pub use category_builder::CategoryBuilder;
 pub use group_builder::GroupBuilder;
-pub use key::Key;
 pub use key::parse_key_sequence;
+pub use key::Key;
 pub use keymap::Keymap;
 pub use node::{KeyChild, KeyNode, LeafBinding, LeafEntry};
 pub use result::KeyResult;
@@ -329,4 +345,4 @@ pub use types::{Binding, BindingGroup, DisplayBinding, NodeResult};
 pub use widget::{PopupPosition, WhichKey};
 
 #[cfg(feature = "crossterm")]
-pub use key::CrosstermKey;
+pub use crossterm::{CrosstermKeymapExt, CrosstermStateExt, EventResult};

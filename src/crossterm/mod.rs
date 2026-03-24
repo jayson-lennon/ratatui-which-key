@@ -13,23 +13,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Result of processing a keybinding, containing an optional action to execute.
-#[derive(Debug, Clone, PartialEq)]
-pub struct KeyResult<A> {
-    /// The action to execute, if any.
-    pub action: Option<A>,
-}
+//! Crossterm backend support for ratatui-which-key.
+//!
+//! This module provides:
+//! - `Key` trait implementation for `crossterm::event::KeyEvent`
+//! - Event handlers for mouse, resize, and focus events
+//! - `handle_event` method for routing all crossterm events
 
-impl<A> KeyResult<A> {
-    /// Creates a new `KeyResult` with the given action.
-    pub fn with_action(action: A) -> Self {
-        Self {
-            action: Some(action),
-        }
-    }
+mod event_result;
+mod handlers;
+mod key;
+mod keymap_ext;
+mod state_ext;
 
-    /// Returns `true` if this result contains an action.
-    pub fn has_action(&self) -> bool {
-        self.action.is_some()
-    }
-}
+pub use event_result::EventResult;
+pub use handlers::{FocusHandler, MouseHandler, ResizeHandler};
+pub use keymap_ext::CrosstermKeymapExt;
+pub use state_ext::CrosstermStateExt;
+
+// Re-export crossterm event types for convenience
+pub use crossterm::event::{Event, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent};

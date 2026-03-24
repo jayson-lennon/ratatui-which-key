@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
 // published by the Free Software Foundation, either version 3 of the
 // License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Affero General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -49,7 +49,8 @@ mod tests {
     #![allow(dead_code)]
     use super::*;
     use crate::test_utils::{TestAction, TestCategory, TestScope};
-    use crate::{CrosstermKey, KeyNode};
+    use crate::KeyNode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn bind_with_navigation_category_works_correctly() {
@@ -59,7 +60,8 @@ mod tests {
         builder.bind("h", TestAction::Open, TestScope::Global);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
 
         // Then the binding exists with Navigation category.
         assert!(node.is_some());
@@ -80,7 +82,8 @@ mod tests {
         builder.bind("q", TestAction::Quit, TestScope::Global);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());
@@ -100,7 +103,8 @@ mod tests {
         builder.bind("h", TestAction::Open, TestScope::Global);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());
@@ -120,7 +124,8 @@ mod tests {
         builder.bind("s", TestAction::Save, TestScope::Global);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());

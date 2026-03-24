@@ -13,23 +13,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-/// Result of processing a keybinding, containing an optional action to execute.
-#[derive(Debug, Clone, PartialEq)]
-pub struct KeyResult<A> {
-    /// The action to execute, if any.
-    pub action: Option<A>,
-}
+use std::sync::Arc;
 
-impl<A> KeyResult<A> {
-    /// Creates a new `KeyResult` with the given action.
-    pub fn with_action(action: A) -> Self {
-        Self {
-            action: Some(action),
-        }
-    }
+/// Handler for mouse events.
+pub type MouseHandler<S, A> =
+    Arc<dyn Fn(crossterm::event::MouseEvent, &S) -> Option<A> + Send + Sync>;
 
-    /// Returns `true` if this result contains an action.
-    pub fn has_action(&self) -> bool {
-        self.action.is_some()
-    }
-}
+/// Handler for resize events.
+pub type ResizeHandler<S, A> = Arc<dyn Fn(u16, u16, &S) -> Option<A> + Send + Sync>;
+
+/// Handler for focus events.
+pub type FocusHandler<S, A> = Arc<dyn Fn(&S) -> Option<A> + Send + Sync>;

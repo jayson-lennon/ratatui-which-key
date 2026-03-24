@@ -62,7 +62,8 @@ mod tests {
     #![allow(dead_code)]
     use super::*;
     use crate::test_utils::{TestAction, TestCategory, TestScope};
-    use crate::{CrosstermKey, KeyNode};
+    use crate::KeyNode;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
     fn bind_with_navigation_category_works_correctly() {
@@ -72,7 +73,8 @@ mod tests {
         builder.bind("h", TestAction::Open, TestCategory::Navigation);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
 
         // Then the binding exists with Navigation category.
         assert!(node.is_some());
@@ -93,7 +95,8 @@ mod tests {
         builder.bind("q", TestAction::Quit, TestCategory::General);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('q')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());
@@ -113,7 +116,8 @@ mod tests {
         builder.bind("h", TestAction::Open, TestCategory::Navigation);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('h')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());
@@ -133,7 +137,8 @@ mod tests {
         builder.bind("s", TestAction::Save, TestCategory::General);
 
         // When looking up the binding.
-        let node = keymap.get_node_at_path(&[CrosstermKey::Char('s')]);
+        let node =
+            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('s'), KeyModifiers::empty())]);
 
         // Then the binding exists with the correct action.
         assert!(node.is_some());

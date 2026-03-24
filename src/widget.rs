@@ -18,7 +18,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
 };
 
-use crate::{Key, WhichKeyState, render};
+use crate::{render, Key, WhichKeyState};
 
 /// Position of the which-key popup on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
