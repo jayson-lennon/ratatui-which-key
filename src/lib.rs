@@ -79,7 +79,7 @@
 //!
 //! ```
 //! # use crossterm::event::KeyEvent;
-//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState};
+//! # use ratatui_which_key::{Keymap, WhichKey, WhichKeyState, CrosstermStateExt};
 //! # #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 //! # enum Scope { Global, Insert, SearchPanel }
 //! # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
@@ -119,8 +119,8 @@
 //!
 //! // In your input handler:
 //! # use crossterm::event::{KeyCode, KeyModifiers};
-//! # let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty());
-//! if let Some(action) = app.which_key.handle_key(key).action {
+//! # let key = crossterm::event::Event::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()));
+//! if let Some(action) = app.which_key.handle_event(key).into_action() {
 //!     match action {
 //!         Action::ToggleHelp => app.which_key.toggle(),
 //!         Action::Quit => (), // logic here
@@ -333,8 +333,8 @@ mod crossterm;
 
 pub use category_builder::CategoryBuilder;
 pub use group_builder::GroupBuilder;
-pub use key::parse_key_sequence;
 pub use key::Key;
+pub use key::parse_key_sequence;
 pub use keymap::Keymap;
 pub use node::{KeyChild, KeyNode, LeafBinding, LeafEntry};
 pub use result::KeyResult;
