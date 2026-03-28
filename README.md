@@ -1,5 +1,9 @@
 # ratatui-which-key
 
+[![Crates.io](https://img.shields.io/crates/v/ratatui-which-key.svg)](https://crates.io/crates/ratatui-which-key)
+[![License: LGPL-3.0-or-later](https://img.shields.io/badge/License-LGPL--3.0--or--later-blue.svg)](https://opensource.org/license/lgpl-3-0)
+[![Repository](https://img.shields.io/badge/repository-GitHub-black)](https://github.com/jayson-lennnon/ratatui-which-key)
+
 An application-level input handler and focus manager for [ratatui](https://github.com/ratatui/ratatui) applications with an API and popup widget inspired by [folke's which-key.nvim](https://github.com/folke/which-key.nvim).
 
 ![screenshot 1](media/screenshot-1.png)
@@ -203,4 +207,4 @@ if app.which_key.active {
 
 ## License
 
-[AGPL-3.0-or-later](https://www.gnu.org/licenses/agpl-3.0.en.html)
+[LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.en.html)
