@@ -1,3 +1,13 @@
+## [0.4.1] - 2026-03-28
+
+### 🐛 Bug Fixes
+
+- Change license to LGPL-v3
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix clippy lints
+- Version bump
 ## [0.4.0] - 2026-03-24
 
 ### 🚀 Features
