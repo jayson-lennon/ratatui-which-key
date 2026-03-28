@@ -1,17 +1,17 @@
 // Copyright (C) 2026 Jayson Lennon
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
+// 
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 3 of the License, or (at your option) any later version.
+// 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
 use crate::{Key, Keymap};
 
@@ -48,8 +48,8 @@ impl<'a, K: Key, S, A, C> CategoryBuilder<'a, K, S, A, C> {
 mod tests {
     #![allow(dead_code)]
     use super::*;
-    use crate::test_utils::{TestAction, TestCategory, TestScope};
     use crate::KeyNode;
+    use crate::test_utils::{TestAction, TestCategory, TestScope};
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]

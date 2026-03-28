@@ -1,26 +1,26 @@
 // Copyright (C) 2026 Jayson Lennon
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as
-// published by the Free Software Foundation, either version 3 of the
-// License, or (at your option) any later version.
-//
+// 
+// This program is free software; you can redistribute it and/or
+// modify it under the terms of the GNU Lesser General Public
+// License as published by the Free Software Foundation; either
+// version 3 of the License, or (at your option) any later version.
+// 
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{
-    parse_key_sequence, state::CatchAllHandler, Binding, BindingGroup, CategoryBuilder,
-    DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry, NodeResult,
-    ScopeAndCategoryBuilder, ScopeBuilder,
+    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
+    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
+    state::CatchAllHandler,
 };
 
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
