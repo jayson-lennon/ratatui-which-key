@@ -1,3 +1,12 @@
+## [0.4.2] - 2026-03-28
+
+### 📚 Documentation
+
+- Add badges; fix license link
+
+### ⚙️ Miscellaneous Tasks
+
+- Version bump
 ## [0.4.1] - 2026-03-28
 
 ### 🐛 Bug Fixes
@@ -9,6 +18,7 @@
 - Fix clippy lints
 - Version bump
 - Changelog update
+- Release ratatui-which-key version 0.4.1
 ## [0.4.0] - 2026-03-24
 
 ### 🚀 Features
