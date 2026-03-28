@@ -3,6 +3,7 @@
 ### 📚 Documentation
 
 - Add badges; fix license link
+- Changelog update
 
 ### ⚙️ Miscellaneous Tasks
 
