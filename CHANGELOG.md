@@ -1,3 +1,12 @@
+## [0.5.0] - 2026-03-29
+
+### 🐛 Bug Fixes
+
+- Allow catch_all to handle backspace when no key sequence is active
+
+### ⚙️ Miscellaneous Tasks
+
+- Version bump
 ## [0.4.2] - 2026-03-28
 
 ### 📚 Documentation
@@ -8,6 +17,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Version bump
+- Release ratatui-which-key version 0.4.2
 ## [0.4.1] - 2026-03-28
 
 ### 🐛 Bug Fixes
