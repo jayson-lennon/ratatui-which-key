@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -133,7 +133,7 @@ where
     /// Returns a `KeyResult` indicating whether the key was consumed,
     /// an action should be dispatched, or the popup should be dismissed.
     pub fn handle_key(&mut self, key: K) -> Option<A> {
-        if key.is_backspace() {
+        if key.is_backspace() && !self.current_sequence.is_empty() {
             self.current_sequence.pop();
             if self.current_sequence.is_empty() {
                 self.dismiss();
@@ -451,6 +451,62 @@ mod tests {
         // Then no action is returned (catch-all doesn't apply to Global scope).
         assert!(result.is_none());
         assert!(!state.active);
+    }
+
+    #[test]
+    fn backspace_with_empty_sequence_invokes_catch_all() {
+        // Given a state with a catch-all handler registered for the current scope
+        // that returns Some(TestAction::Save) for backspace.
+        let mut keymap = create_test_keymap();
+        keymap.register_catch_all(TestScope::Global, |key| {
+            if key.is_backspace() {
+                Some(TestAction::Save)
+            } else {
+                None
+            }
+        });
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+
+        // When backspace is pressed with an empty current_sequence.
+        let result = state.handle_key(TestKey::Backspace);
+
+        // Then the catch-all handler is invoked and returns the action.
+        assert_eq!(result, Some(TestAction::Save));
+    }
+
+    #[test]
+    fn backspace_with_empty_sequence_no_catch_all_dismisses() {
+        // Given a state with NO catch_all handler registered.
+        let keymap = create_test_keymap();
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+        state.active = true;
+
+        // When backspace is pressed with an empty current_sequence.
+        let result = state.handle_key(TestKey::Backspace);
+
+        // Then the result is None and the popup is dismissed.
+        assert!(result.is_none());
+        assert!(!state.active);
+    }
+
+    #[test]
+    fn backspace_with_nonempty_sequence_still_pops() {
+        // Given a state with a binding "qw" → Quit, and the sequence already has 'q' pushed.
+        let mut state = state_with_binding_and_sequence(
+            "qw",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+            &[TestKey::Char('q')],
+        );
+
+        // When backspace is pressed.
+        let result = state.handle_key(TestKey::Backspace);
+
+        // Then the sequence is popped, active becomes false, and None is returned.
+        assert!(result.is_none());
+        assert!(!state.active);
+        assert!(state.current_sequence.is_empty());
     }
 
     #[test]
