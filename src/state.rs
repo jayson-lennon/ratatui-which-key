@@ -175,7 +175,7 @@ where
             self.cached_bindings.clone()
         } else {
             self.keymap
-                .children_at_path(&self.current_sequence)
+                .children_at_path(&self.current_sequence, &self.scope)
                 .map(|children| {
                     vec![BindingGroup {
                         category: String::new(),

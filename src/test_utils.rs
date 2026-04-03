@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -143,10 +143,11 @@ pub fn assert_leaf_entry<K, S, A, C>(
 pub fn assert_branch_at_path<K, S, A, C>(
     keymap: &Keymap<K, S, A, C>,
     path: &[K],
+    scope: S,
     expected_description: &str,
 ) where
     K: crate::Key + PartialEq,
-    S: Clone,
+    S: Clone + PartialEq,
     A: Clone,
     C: Clone,
 {
@@ -155,12 +156,9 @@ pub fn assert_branch_at_path<K, S, A, C>(
         .expect("Expected node at path");
     match node {
         KeyNode::Leaf(_) => panic!("Expected Branch node at path, got Leaf"),
-        KeyNode::Branch {
-            description,
-            children,
-            ..
-        } => {
-            assert_eq!(*description, expected_description, "Description mismatch");
+        KeyNode::Branch { children, .. } => {
+            let description = node.description(&scope);
+            assert_eq!(description, expected_description, "Description mismatch");
             assert!(
                 children.is_empty(),
                 "Expected no children (placeholder), found {}",
@@ -351,14 +349,17 @@ pub fn assert_branch_child_key(
 pub fn assert_branch_description(
     keymap: &Keymap<KeyEvent, TestScope, TestAction, TestCategory>,
     path: &[KeyEvent],
+    scope: TestScope,
     expected_description: &str,
 ) {
     let node = keymap
         .get_node_at_path(path)
         .expect("Expected node at path");
-    let description = match node {
+    match node {
         KeyNode::Leaf(_) => panic!("Expected Branch node at path, got Leaf"),
-        KeyNode::Branch { description, .. } => *description,
-    };
-    assert_eq!(description, expected_description);
+        KeyNode::Branch { .. } => {
+            let description = node.description(&scope);
+            assert_eq!(description, expected_description);
+        }
+    }
 }

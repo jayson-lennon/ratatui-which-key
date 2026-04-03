@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -37,6 +37,8 @@ pub enum KeyNode<K: Key, S, A, C> {
     Branch {
         /// Description shown in the which-key popup.
         description: &'static str,
+        /// Per-scope description overrides.
+        scope_descriptions: Vec<(S, &'static str)>,
         /// Child key bindings.
         children: Vec<KeyChild<K, S, A, C>>,
         /// Leaf entries for scopes where this key is a terminal action.
@@ -46,18 +48,30 @@ pub enum KeyNode<K: Key, S, A, C> {
 
 impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
     /// Returns the description of this node.
-    pub fn description(&self) -> String {
+    pub fn description(&self, scope: &S) -> String
+    where
+        S: PartialEq,
+    {
         match self {
             KeyNode::Leaf(entries) => entries
                 .first()
                 .map_or(String::new(), |e| e.description.clone()),
             KeyNode::Branch {
                 description,
+                scope_descriptions,
                 leaf_entries,
                 ..
-            } => leaf_entries
-                .first()
-                .map_or(description.to_string(), |e| e.description.clone()),
+            } => {
+                if let Some(entry) = leaf_entries.first() {
+                    entry.description.clone()
+                } else if let Some((_, scoped_desc)) =
+                    scope_descriptions.iter().find(|(s, _)| s == scope)
+                {
+                    scoped_desc.to_string()
+                } else {
+                    description.to_string()
+                }
+            }
         }
     }
 
@@ -135,6 +149,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
             key,
             node: KeyNode::Branch {
                 description,
+                scope_descriptions: Vec::new(),
                 children,
                 leaf_entries: Vec::new(),
             },
@@ -250,7 +265,7 @@ mod tests {
 
         // When checking the branch properties.
         let is_branch = child.node.is_branch();
-        let description = child.node.description();
+        let description = child.node.description(&TestScope::Normal);
 
         // Then it is a branch with the correct description.
         assert!(is_branch);

@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -18,9 +18,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::{
-    Binding, BindingGroup, CategoryBuilder, DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode,
-    LeafEntry, NodeResult, ScopeAndCategoryBuilder, ScopeBuilder, parse_key_sequence,
-    state::CatchAllHandler,
+    parse_key_sequence, state::CatchAllHandler, Binding, BindingGroup, CategoryBuilder,
+    DisplayBinding, GroupBuilder, Key, KeyChild, KeyNode, LeafEntry, NodeResult,
+    ScopeAndCategoryBuilder, ScopeBuilder,
 };
 
 /// A hierarchical keymap that maps key sequences to actions with scope and category support.
@@ -221,6 +221,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 let new_child = Self::build_tree(&keys[1..], action, category, scope);
                 child.node = KeyNode::Branch {
                     description: "...",
+                    scope_descriptions: Vec::new(),
                     children: vec![new_child],
                     leaf_entries: existing_entries,
                 };
@@ -287,15 +288,16 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     /// Returns `None` if the path leads to a leaf node or doesn't exist.
     /// Returns root bindings for an empty path.
     #[must_use]
-    pub fn get_children_at_path(&self, keys: &[K]) -> Option<Vec<(K, String)>>
+    pub fn get_children_at_path(&self, keys: &[K], scope: &S) -> Option<Vec<(K, String)>>
     where
         K: PartialEq + Clone,
+        S: PartialEq,
     {
         let node = if keys.is_empty() {
             return Some(
                 self.bindings
                     .iter()
-                    .map(|c| (c.key.clone(), c.node.description()))
+                    .map(|c| (c.key.clone(), c.node.description(scope)))
                     .collect(),
             );
         } else {
@@ -306,7 +308,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             KeyNode::Branch { children, .. } => Some(
                 children
                     .iter()
-                    .map(|c| (c.key.clone(), c.node.description()))
+                    .map(|c| (c.key.clone(), c.node.description(scope)))
                     .collect(),
             ),
             KeyNode::Leaf(_) => None,
@@ -344,11 +346,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                             category: entry.category.clone(),
                         })
                 }
-                KeyNode::Branch {
-                    description,
-                    leaf_entries,
-                    ..
-                } => {
+                KeyNode::Branch { leaf_entries, .. } => {
                     if let Some(entry) = leaf_entries.iter().find(|e| e.scope == scope) {
                         Some(DisplayBinding {
                             key: child.key.clone(),
@@ -359,7 +357,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                         Self::find_category_in_children(&child.node, &scope).map(|category| {
                             DisplayBinding {
                                 key: child.key.clone(),
-                                description: description.to_string(),
+                                description: child.node.description(&scope),
                                 category,
                             }
                         })
@@ -440,11 +438,12 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     ///
     /// Returns `None` if the path leads to a leaf node or doesn't exist.
     #[must_use]
-    pub fn children_at_path(&self, keys: &[K]) -> Option<Vec<Binding<K>>>
+    pub fn children_at_path(&self, keys: &[K], scope: &S) -> Option<Vec<Binding<K>>>
     where
         K: Clone + PartialEq,
+        S: PartialEq,
     {
-        self.get_children_at_path(keys).map(|children| {
+        self.get_children_at_path(keys, scope).map(|children| {
             children
                 .into_iter()
                 .map(|(key, description)| Binding { key, description })
@@ -504,7 +503,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                             .iter()
                             .map(|c| Binding {
                                 key: c.key.clone(),
-                                description: c.node.description(),
+                                description: c.node.description(scope),
                             })
                             .collect(),
                     })
@@ -539,6 +538,32 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             return self;
         }
         self.ensure_branch_with_description(&keys, description);
+        self
+    }
+
+    /// Sets a scope-specific description for a prefix key group.
+    ///
+    /// Creates a branch node at the prefix path if it doesn't exist,
+    /// then adds a per-scope description override. When displaying
+    /// bindings for the given scope, this description takes priority
+    /// over the default set by [`describe_group`](Self::describe_group).
+    pub fn describe_group_for_scope(
+        &mut self,
+        prefix: &str,
+        description: &'static str,
+        scope: S,
+    ) -> &mut Self
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        A: Clone,
+        C: Clone,
+    {
+        let keys = parse_key_sequence(prefix, &self.leader_key);
+        if keys.is_empty() {
+            return self;
+        }
+        self.ensure_branch_with_scope_description(&keys, description, scope);
         self
     }
 
@@ -590,6 +615,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             KeyNode::Leaf(_) => {
                 child.node = KeyNode::Branch {
                     description,
+                    scope_descriptions: Vec::new(),
                     children: Vec::new(),
                     leaf_entries: Vec::new(),
                 };
@@ -619,6 +645,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 let new_child = Self::build_branch_tree(remaining, description);
                 child.node = KeyNode::Branch {
                     description,
+                    scope_descriptions: Vec::new(),
                     children: vec![new_child],
                     leaf_entries: Vec::new(),
                 };
@@ -638,6 +665,114 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     let new_child = Self::build_branch_tree(remaining, description);
                     children.push(new_child);
                 }
+            }
+        }
+    }
+
+    fn ensure_branch_with_scope_description(
+        &mut self,
+        keys: &[K],
+        description: &'static str,
+        scope: S,
+    ) where
+        K: Clone,
+        S: Clone + PartialEq,
+        A: Clone,
+        C: Clone,
+    {
+        if keys.is_empty() {
+            return;
+        }
+        let first_key = keys[0].clone();
+        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == first_key) {
+            Self::set_scope_description_in_child(child, keys, description, scope);
+        } else {
+            let mut new_child = Self::build_branch_tree(keys, "...");
+            if let KeyNode::Branch {
+                scope_descriptions, ..
+            } = &mut new_child.node
+            {
+                scope_descriptions.push((scope, description));
+            }
+            self.bindings.push(new_child);
+        }
+    }
+
+    fn set_scope_description_in_child(
+        child: &mut KeyChild<K, S, A, C>,
+        keys: &[K],
+        description: &'static str,
+        scope: S,
+    ) where
+        K: Clone,
+        S: Clone + PartialEq,
+        A: Clone,
+    {
+        if keys.len() == 1 {
+            Self::set_scope_description_on_final_key(child, description, scope);
+            return;
+        }
+
+        let remaining = &keys[1..];
+
+        match &mut child.node {
+            KeyNode::Leaf(_) => {
+                let mut new_child = Self::build_branch_tree(remaining, "...");
+                if let KeyNode::Branch {
+                    scope_descriptions, ..
+                } = &mut new_child.node
+                {
+                    scope_descriptions.push((scope, description));
+                }
+                child.node = KeyNode::Branch {
+                    description: "...",
+                    scope_descriptions: Vec::new(),
+                    children: vec![new_child],
+                    leaf_entries: Vec::new(),
+                };
+            }
+            KeyNode::Branch { children, .. } => {
+                let next_key = keys[1].clone();
+                if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
+                    Self::set_scope_description_in_child(next_child, remaining, description, scope);
+                } else {
+                    let mut new_child = Self::build_branch_tree(remaining, "...");
+                    if let KeyNode::Branch {
+                        scope_descriptions, ..
+                    } = &mut new_child.node
+                    {
+                        scope_descriptions.push((scope, description));
+                    }
+                    children.push(new_child);
+                }
+            }
+        }
+    }
+
+    fn set_scope_description_on_final_key(
+        child: &mut KeyChild<K, S, A, C>,
+        description: &'static str,
+        scope: S,
+    ) where
+        S: PartialEq,
+    {
+        match &mut child.node {
+            KeyNode::Branch {
+                scope_descriptions, ..
+            } => {
+                if let Some(entry) = scope_descriptions.iter_mut().find(|(s, _)| *s == scope) {
+                    *entry = (scope, description);
+                } else {
+                    scope_descriptions.push((scope, description));
+                }
+            }
+            KeyNode::Leaf(_) => {
+                child.node = KeyNode::Branch {
+                    description: "...",
+                    scope_descriptions: vec![(scope, description)],
+                    children: Vec::new(),
+                    leaf_entries: Vec::new(),
+                };
             }
         }
     }
@@ -1713,7 +1848,7 @@ mod tests {
         );
 
         // When getting children at an empty path.
-        let result = keymap.get_children_at_path(&[]);
+        let result = keymap.get_children_at_path(&[], &TestScope::Global);
 
         // Then root bindings are returned (plus leader group).
         assert!(result.is_some());
@@ -1733,8 +1868,10 @@ mod tests {
         );
 
         // When getting children at the leaf path.
-        let result = keymap
-            .get_children_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())]);
+        let result = keymap.get_children_at_path(
+            &[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())],
+            &TestScope::Global,
+        );
 
         // Then none is returned.
         assert!(result.is_none());
@@ -2477,5 +2614,120 @@ mod tests {
             &TestScope::Normal,
         );
         assert!(matches!(result, Some(NodeResult::Branch { .. })));
+    }
+
+    #[test]
+    fn describe_group_for_scope_same_prefix_shows_different_names_per_scope() {
+        // Given a keymap with bindings "ta" in Global scope and "tb" in Insert scope,
+        // each with a different group description for the "t" prefix.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "ta",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+        keymap.bind(
+            "tb",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Insert,
+        );
+        keymap.describe_group_for_scope("t", "t-one", TestScope::Global);
+        keymap.describe_group_for_scope("t", "t-two", TestScope::Insert);
+
+        // When getting bindings for Global scope.
+        let global_bindings = keymap.get_bindings_for_scope(TestScope::Global);
+        let t_binding_global = global_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Global scope");
+
+        // Then the description is "t-one".
+        assert_eq!(t_binding_global.description, "t-one");
+
+        // When getting bindings for Insert scope.
+        let insert_bindings = keymap.get_bindings_for_scope(TestScope::Insert);
+        let t_binding_insert = insert_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Insert scope");
+
+        // Then the description is "t-two".
+        assert_eq!(t_binding_insert.description, "t-two");
+    }
+
+    #[test]
+    fn describe_group_for_scope_via_scope_builder() {
+        // Given a keymap using ScopeBuilder to set per-scope group descriptions.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.scope(TestScope::Global, |b| {
+            b.describe_group("t", "t-one");
+            b.bind("ta", TestAction::Quit, TestCategory::General);
+        });
+        keymap.scope(TestScope::Insert, |b| {
+            b.describe_group("t", "t-two");
+            b.bind("tb", TestAction::Save, TestCategory::General);
+        });
+
+        // When getting bindings for Global scope.
+        let global_bindings = keymap.get_bindings_for_scope(TestScope::Global);
+        let t_binding_global = global_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Global scope");
+
+        // Then the description is "t-one".
+        assert_eq!(t_binding_global.description, "t-one");
+
+        // When getting bindings for Insert scope.
+        let insert_bindings = keymap.get_bindings_for_scope(TestScope::Insert);
+        let t_binding_insert = insert_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Insert scope");
+
+        // Then the description is "t-two".
+        assert_eq!(t_binding_insert.description, "t-two");
+    }
+
+    #[test]
+    fn describe_group_for_scope_falls_back_to_default() {
+        // Given a keymap with a default description and a scope-specific override.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "ta",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+        keymap.bind(
+            "tb",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Insert,
+        );
+        keymap.describe_group("t", "default-name");
+        keymap.describe_group_for_scope("t", "override-name", TestScope::Global);
+
+        // When getting bindings for Global scope (has override).
+        let global_bindings = keymap.get_bindings_for_scope(TestScope::Global);
+        let t_global = global_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Global scope");
+
+        // Then the scope-specific description takes priority.
+        assert_eq!(t_global.description, "override-name");
+
+        // When getting bindings for Insert scope (no override).
+        let insert_bindings = keymap.get_bindings_for_scope(TestScope::Insert);
+        let t_insert = insert_bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Insert scope");
+
+        // Then the default description is used.
+        assert_eq!(t_insert.description, "default-name");
     }
 }

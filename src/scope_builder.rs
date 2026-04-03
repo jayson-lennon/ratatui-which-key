@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -42,6 +42,23 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
         self
     }
 
+    /// Sets a description for a prefix key group in this scope.
+    ///
+    /// The description is stored as a scope-specific override. When
+    /// displaying bindings for this scope, this description takes
+    /// priority over the default set by [`Keymap::describe_group`].
+    pub fn describe_group(&mut self, prefix: &str, description: &'static str) -> &mut Self
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        A: Clone,
+        C: Clone,
+    {
+        self.keymap
+            .describe_group_for_scope(prefix, description, self.scope.clone());
+        self
+    }
+
     /// Register a catch-all handler for this scope.
     ///
     /// The handler is invoked when a key doesn't match any binding.
@@ -61,8 +78,8 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
 mod tests {
     #![allow(dead_code)]
     use super::*;
-    use crate::KeyNode;
     use crate::test_utils::{TestAction, TestCategory, TestScope};
+    use crate::KeyNode;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     #[test]
@@ -148,5 +165,25 @@ mod tests {
         } else {
             panic!("Expected leaf node for 's'");
         }
+    }
+
+    #[test]
+    fn describe_group_sets_scope_specific_description() {
+        // Given a scope builder for Global scope.
+        let mut keymap = Keymap::new();
+        let mut builder = ScopeBuilder::new(&mut keymap, TestScope::Global);
+        builder.bind("ta", TestAction::Quit, TestCategory::General);
+        builder.describe_group("t", "t-group");
+
+        // When getting bindings for the Global scope.
+        let bindings: Vec<crate::DisplayBinding<KeyEvent, TestCategory>> =
+            keymap.get_bindings_for_scope(TestScope::Global);
+        let t_binding = bindings
+            .iter()
+            .find(|b| b.key.display() == "t")
+            .expect("Expected 't' binding in Global scope");
+
+        // Then the scope-specific description is set.
+        assert_eq!(t_binding.description, "t-group");
     }
 }

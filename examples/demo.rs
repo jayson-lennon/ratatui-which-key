@@ -1,15 +1,15 @@
 // Copyright (C) 2026 Jayson Lennon
-// 
+//
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
@@ -17,15 +17,15 @@ use crossterm::event::KeyEvent;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use derive_more::Display;
 use ratatui::{
-    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
+    Frame, Terminal,
 };
 use ratatui_which_key::{CrosstermKeymapExt, CrosstermStateExt, Keymap, WhichKey, WhichKeyState};
 use std::io;
@@ -76,6 +76,14 @@ enum Action {
     Focused,
     #[display("terminal unfocused")]
     Unfocused,
+    #[display("toggle whitespace")]
+    ToggleWhitespace,
+    #[display("delete line")]
+    DeleteLine,
+    #[display("new tab")]
+    NewTab,
+    #[display("close tab")]
+    CloseTab,
 }
 
 #[rustfmt::skip]
@@ -96,6 +104,13 @@ fn create_keymap() -> Keymap<KeyEvent, Scope, Action, Category> {
             .bind("<leader>gd", Action::GoDown);
     });
 
+    // Normal mode: "t" prefix shows "text operations" in Normal scope.
+    keymap.scope(Scope::Normal, |g| {
+        g.describe_group("t", "text operations")
+            .bind("tw", Action::ToggleWhitespace, Category::General)
+            .bind("td", Action::DeleteLine, Category::General);
+    });
+
     // Insert mode: .scope() with distinct bindings (no overlap with Normal)
     keymap.scope(Scope::Insert, |insert| {
         insert
@@ -105,6 +120,10 @@ fn create_keymap() -> Keymap<KeyEvent, Scope, Action, Category> {
             .bind("o", Action::NewLineBelow, Category::General)
             .bind("O", Action::NewLineAbove, Category::General)
             .bind("?", Action::ToggleHelp, Category::General)
+            // Same "t" prefix, different group name in Insert scope.
+            .describe_group("t", "tab management")
+            .bind("tn", Action::NewTab, Category::General)
+            .bind("tc", Action::CloseTab, Category::General)
             .catch_all(|key: KeyEvent| {
                 use crossterm::event::KeyCode;
                 if let KeyCode::Char(ch) = key.code {
@@ -189,6 +208,12 @@ impl App {
             Action::Resized(cols, rows) => format!("Terminal resized to {cols}x{rows}"),
             Action::Focused => "Terminal gained focus".to_string(),
             Action::Unfocused => "Terminal lost focus".to_string(),
+            Action::ToggleWhitespace => "Toggled whitespace".to_string(),
+            Action::DeleteLine => {
+                format!("Deleted line at position {}", self.position)
+            }
+            Action::NewTab => "Opened new tab".to_string(),
+            Action::CloseTab => "Closed tab".to_string(),
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {

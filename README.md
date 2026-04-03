@@ -113,9 +113,17 @@ keymap
             // sequences supported
             .bind("<leader>w", Action::Save, Category::General)
             // sequences can start with any key
-            .bind("gof", Action::OpenFile, Category::General);
+            .bind("gof", Action::OpenFile, Category::General)
+            // Group descriptions can differ per scope. "t" shows "text operations"
+            // in Global scope and "tab management" in Insert scope (see below).
+            .describe_group("t", "text operations")
+            .bind("tw", Action::ToggleWhitespace, Category::General);
     })
     .scope(Scope::Insert, |insert| {
+        // Same "t" prefix, different group name in Insert scope.
+        insert
+            .describe_group("t", "tab management")
+            .bind("tn", Action::NewTab, Category::General);
         // While in the `Insert` scope, all keys will be routed to this handler.
         insert.catch_all(|key: KeyEvent| {
             use crossterm::event::{KeyCode, KeyModifiers};
