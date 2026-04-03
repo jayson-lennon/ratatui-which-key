@@ -1,3 +1,12 @@
+## [0.6.0] - 2026-04-03
+
+### 🚀 Features
+
+- Add per-scope group descriptions via ScopeBuilder::describe_group
+
+### ⚙️ Miscellaneous Tasks
+
+- Version bump
 ## [0.5.0] - 2026-03-29
 
 ### 🐛 Bug Fixes
@@ -8,6 +17,7 @@
 
 - Version bump
 - Changelog update
+- Release ratatui-which-key version 0.5.0
 ## [0.4.2] - 2026-03-28
 
 ### 📚 Documentation
