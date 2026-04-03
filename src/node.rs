@@ -62,7 +62,7 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
                 leaf_entries,
                 ..
             } => {
-                if let Some(entry) = leaf_entries.first() {
+                if let Some(entry) = leaf_entries.iter().find(|e| e.scope == *scope) {
                     entry.description.clone()
                 } else if let Some((_, scoped_desc)) =
                     scope_descriptions.iter().find(|(s, _)| s == scope)
@@ -270,6 +270,62 @@ mod tests {
         // Then it is a branch with the correct description.
         assert!(is_branch);
         assert_eq!(description, "empty branch");
+    }
+
+    #[test]
+    fn branch_description_returns_branch_desc_when_leaf_scope_differs() {
+        // Given a branch with a leaf entry scoped to TestScope::Normal and children scoped to TestScope::Insert.
+        let node: KeyNode<TestKey, TestScope, TestAction, TestCategory> = KeyNode::Branch {
+            description: "source",
+            scope_descriptions: vec![],
+            children: vec![KeyChild::leaf(
+                TestKey::Char('a'),
+                TestAction::Save,
+                "start analysis".to_string(),
+                TestCategory::General,
+                TestScope::Insert,
+            )],
+            leaf_entries: vec![LeafEntry {
+                action: TestAction::Save,
+                description: "start analysis".to_string(),
+                category: TestCategory::General,
+                scope: TestScope::Normal,
+            }],
+        };
+
+        // When querying the description with TestScope::Insert (which doesn't match the leaf entry scope).
+        let result = node.description(&TestScope::Insert);
+
+        // Then the branch's own description is returned, not the leaf entry's.
+        assert_eq!(result, "source");
+    }
+
+    #[test]
+    fn branch_description_returns_leaf_desc_when_leaf_scope_matches() {
+        // Given a branch with a leaf entry scoped to TestScope::Normal.
+        let node: KeyNode<TestKey, TestScope, TestAction, TestCategory> = KeyNode::Branch {
+            description: "source",
+            scope_descriptions: vec![],
+            children: vec![KeyChild::leaf(
+                TestKey::Char('a'),
+                TestAction::Save,
+                "start analysis".to_string(),
+                TestCategory::General,
+                TestScope::Insert,
+            )],
+            leaf_entries: vec![LeafEntry {
+                action: TestAction::Save,
+                description: "start analysis".to_string(),
+                category: TestCategory::General,
+                scope: TestScope::Normal,
+            }],
+        };
+
+        // When querying the description with TestScope::Normal (which matches the leaf entry scope).
+        let result = node.description(&TestScope::Normal);
+
+        // Then the leaf entry's description is returned.
+        assert_eq!(result, "start analysis");
     }
 
     #[test]
