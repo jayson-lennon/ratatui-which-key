@@ -7,6 +7,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Version bump
+- Changelog update
 ## [0.6.0] - 2026-04-03
 
 ### 🚀 Features
