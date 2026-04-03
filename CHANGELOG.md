@@ -1,3 +1,12 @@
+## [0.6.1] - 2026-04-03
+
+### 🐛 Bug Fixes
+
+- Scopes prioritized if they have a described group
+
+### ⚙️ Miscellaneous Tasks
+
+- Version bump
 ## [0.6.0] - 2026-04-03
 
 ### 🚀 Features
@@ -8,6 +17,7 @@
 
 - Version bump
 - Changelog update
+- Release ratatui-which-key version 0.6.0
 ## [0.5.0] - 2026-03-29
 
 ### 🐛 Bug Fixes
