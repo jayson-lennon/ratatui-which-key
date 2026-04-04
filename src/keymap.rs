@@ -308,6 +308,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             KeyNode::Branch { children, .. } => Some(
                 children
                     .iter()
+                    .filter(|c| Self::has_bindings_for_scope(&c.node, scope))
                     .map(|c| (c.key.clone(), c.node.description(scope)))
                     .collect(),
             ),
@@ -501,6 +502,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     Some(NodeResult::Branch {
                         children: children
                             .iter()
+                            .filter(|c| Self::has_bindings_for_scope(&c.node, scope))
                             .map(|c| Binding {
                                 key: c.key.clone(),
                                 description: c.node.description(scope),
