@@ -1,6 +1,11 @@
 COPYRIGHT_NAME := "Jayson Lennon"
 COPYRIGHT_YEAR := "2026"
 
+release:
+    cargo release
+    git add CHANGELOG.md
+    git commit -m "chore: changelog update"
+    cargo release --execute
 
 clippy:
     cargo clippy --all-targets
