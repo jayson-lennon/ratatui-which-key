@@ -2732,4 +2732,90 @@ mod tests {
         // Then the default description is used.
         assert_eq!(t_insert.description, "default-name");
     }
+
+    #[test]
+    fn scope_group_not_visible_in_other_scope_via_children_at_path() {
+        // Given a keymap with "ga" in Global scope and "gxb" in Insert scope,
+        // where "gx" has a scope-specific group description in Insert scope.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "ga",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+        keymap.scope(TestScope::Insert, |b| {
+            b.describe_group("gx", "export");
+            b.bind("gxb", TestAction::Save, TestCategory::General);
+        });
+
+        // When getting children at "g" for Global scope.
+        let children = keymap
+            .get_children_at_path(
+                &[KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+                &TestScope::Global,
+            )
+            .expect("children at g");
+
+        // Then only "a" is visible (not "x", which has no Global bindings).
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0.display(), "a");
+
+        // When getting children at "g" for Insert scope.
+        let children = keymap
+            .get_children_at_path(
+                &[KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+                &TestScope::Insert,
+            )
+            .expect("children at g");
+
+        // Then only "x" is visible (not "a", which is scoped to Global).
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0].0.display(), "x");
+    }
+
+    #[test]
+    fn scope_group_not_visible_in_other_scope_via_navigate() {
+        // Given a keymap with "ga" in Global scope and "gxb" in Insert scope,
+        // where "gx" has a scope-specific group description in Insert scope.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "ga",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+        keymap.scope(TestScope::Insert, |b| {
+            b.describe_group("gx", "export");
+            b.bind("gxb", TestAction::Save, TestCategory::General);
+        });
+
+        // When navigating to "g" in Global scope.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+            &TestScope::Global,
+        );
+
+        // Then the branch only contains "a" (not "x").
+        if let Some(NodeResult::Branch { children }) = result {
+            assert_eq!(children.len(), 1);
+            assert_eq!(children[0].key.display(), "a");
+        } else {
+            panic!("expected Branch result");
+        }
+
+        // When navigating to "g" in Insert scope.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())],
+            &TestScope::Insert,
+        );
+
+        // Then the branch only contains "x" (not "a", which is scoped to Global).
+        if let Some(NodeResult::Branch { children }) = result {
+            assert_eq!(children.len(), 1);
+            assert_eq!(children[0].key.display(), "x");
+        } else {
+            panic!("expected Branch result");
+        }
+    }
 }
