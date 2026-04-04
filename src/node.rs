@@ -14,6 +14,7 @@
 // along with this program; if not, see <https://opensource.org/license/lgpl-3-0>.
 
 use crate::Key;
+use std::borrow::Cow;
 
 /// A single action entry in a leaf node.
 #[derive(Debug, Clone)]
@@ -48,14 +49,14 @@ pub enum KeyNode<K: Key, S, A, C> {
 
 impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
     /// Returns the description of this node.
-    pub fn description(&self, scope: &S) -> String
+    pub fn description(&self, scope: &S) -> Cow<'_, str>
     where
         S: PartialEq,
     {
         match self {
             KeyNode::Leaf(entries) => entries
                 .first()
-                .map_or(String::new(), |e| e.description.clone()),
+                .map_or(Cow::Borrowed(""), |e| Cow::Borrowed(&e.description)),
             KeyNode::Branch {
                 description,
                 scope_descriptions,
@@ -63,13 +64,13 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
                 ..
             } => {
                 if let Some(entry) = leaf_entries.iter().find(|e| e.scope == *scope) {
-                    entry.description.clone()
+                    Cow::Borrowed(&entry.description)
                 } else if let Some((_, scoped_desc)) =
                     scope_descriptions.iter().find(|(s, _)| s == scope)
                 {
-                    scoped_desc.to_string()
+                    Cow::Borrowed(scoped_desc)
                 } else {
-                    description.to_string()
+                    Cow::Borrowed(description)
                 }
             }
         }

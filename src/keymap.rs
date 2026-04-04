@@ -95,8 +95,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         A: Clone,
         C: Clone,
     {
-        let old_leader = self.leader_key.clone();
-        self.leader_key = leader_key.clone();
+        let old_leader = std::mem::replace(&mut self.leader_key, leader_key);
         self.bindings.retain(|b| b.key != old_leader);
         self.describe_group("<leader>", "<leader>");
         self
@@ -140,8 +139,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         if keys.is_empty() {
             return;
         }
-        let first_key = keys[0].clone();
-        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == first_key) {
+        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == keys[0]) {
             Self::insert_into_child(child, keys, action, category, scope);
         } else {
             let new_child = Self::build_tree(keys, action, category, scope);
@@ -214,7 +212,6 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             return;
         }
 
-        let next_key = keys[1].clone();
         match &mut child.node {
             KeyNode::Leaf(entries) => {
                 let existing_entries = std::mem::take(entries);
@@ -227,7 +224,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 };
             }
             KeyNode::Branch { children, .. } => {
-                if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
+                if let Some(next_child) = children.iter_mut().find(|c| c.key == keys[1]) {
                     Self::insert_into_child(next_child, &keys[1..], action, category, scope);
                 } else {
                     let new_child = Self::build_tree(&keys[1..], action, category, scope);
@@ -297,7 +294,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             return Some(
                 self.bindings
                     .iter()
-                    .map(|c| (c.key.clone(), c.node.description(scope)))
+                    .map(|c| (c.key.clone(), c.node.description(scope).into_owned()))
                     .collect(),
             );
         } else {
@@ -309,7 +306,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 children
                     .iter()
                     .filter(|c| Self::has_bindings_for_scope(&c.node, scope))
-                    .map(|c| (c.key.clone(), c.node.description(scope)))
+                    .map(|c| (c.key.clone(), c.node.description(scope).into_owned()))
                     .collect(),
             ),
             KeyNode::Leaf(_) => None,
@@ -358,7 +355,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                         Self::find_category_in_children(&child.node, &scope).map(|category| {
                             DisplayBinding {
                                 key: child.key.clone(),
-                                description: child.node.description(&scope),
+                                description: child.node.description(&scope).into_owned(),
                                 category,
                             }
                         })
@@ -382,25 +379,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 .map(|e| e.category.clone()),
             KeyNode::Branch { children, .. } => children
                 .iter()
-                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope)),
-        }
-    }
-
-    fn find_category_in_children_recursive(node: &KeyNode<K, S, A, C>, scope: &S) -> Option<C>
-    where
-        K: Clone,
-        S: Clone + PartialEq,
-        A: Clone,
-        C: Clone,
-    {
-        match node {
-            KeyNode::Leaf(entries) => entries
-                .iter()
-                .find(|e| &e.scope == scope)
-                .map(|e| e.category.clone()),
-            KeyNode::Branch { children, .. } => children
-                .iter()
-                .find_map(|c| Self::find_category_in_children_recursive(&c.node, scope)),
+                .find_map(|c| Self::find_category_in_children(&c.node, scope)),
         }
     }
 
@@ -498,19 +477,20 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     Some(NodeResult::Leaf {
                         action: entry.action.clone(),
                     })
-                } else if Self::has_bindings_for_scope(node, scope) {
-                    Some(NodeResult::Branch {
-                        children: children
-                            .iter()
-                            .filter(|c| Self::has_bindings_for_scope(&c.node, scope))
-                            .map(|c| Binding {
-                                key: c.key.clone(),
-                                description: c.node.description(scope),
-                            })
-                            .collect(),
-                    })
                 } else {
-                    None
+                    let matching: Vec<Binding<K>> = children
+                        .iter()
+                        .filter(|c| Self::has_bindings_for_scope(&c.node, scope))
+                        .map(|c| Binding {
+                            key: c.key.clone(),
+                            description: c.node.description(scope).into_owned(),
+                        })
+                        .collect();
+                    if matching.is_empty() {
+                        None
+                    } else {
+                        Some(NodeResult::Branch { children: matching })
+                    }
                 }
             }
             KeyNode::Leaf(entries) => {
@@ -579,8 +559,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         if keys.is_empty() {
             return;
         }
-        let first_key = keys[0].clone();
-        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == first_key) {
+        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == keys[0]) {
             Self::ensure_branch_in_child(child, keys, description);
         } else {
             let new_child = Self::build_branch_tree(keys, description);
@@ -639,7 +618,6 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             return;
         }
 
-        let next_key = keys[1].clone();
         let remaining = &keys[1..];
 
         match &mut child.node {
@@ -661,7 +639,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     *desc = description;
                 }
 
-                if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
+                if let Some(next_child) = children.iter_mut().find(|c| c.key == keys[1]) {
                     Self::ensure_branch_in_child(next_child, remaining, description);
                 } else {
                     let new_child = Self::build_branch_tree(remaining, description);
@@ -685,8 +663,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         if keys.is_empty() {
             return;
         }
-        let first_key = keys[0].clone();
-        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == first_key) {
+        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == keys[0]) {
             Self::set_scope_description_in_child(child, keys, description, scope);
         } else {
             let mut new_child = Self::build_branch_tree(keys, "...");
@@ -734,8 +711,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 };
             }
             KeyNode::Branch { children, .. } => {
-                let next_key = keys[1].clone();
-                if let Some(next_child) = children.iter_mut().find(|c| c.key == next_key) {
+                if let Some(next_child) = children.iter_mut().find(|c| c.key == keys[1]) {
                     Self::set_scope_description_in_child(next_child, remaining, description, scope);
                 } else {
                     let mut new_child = Self::build_branch_tree(remaining, "...");
