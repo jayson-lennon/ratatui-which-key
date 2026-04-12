@@ -11,6 +11,10 @@
 ### 🧪 Testing
 
 - Add regression tests for scope group visibility isolation
+
+### ⚙️ Miscellaneous Tasks
+
+- Version bump
 ## [0.6.2] - 2026-04-04
 
 ### 🚀 Features
