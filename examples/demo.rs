@@ -17,15 +17,15 @@ use crossterm::event::KeyEvent;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use derive_more::Display;
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     style::{Color, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
-    Frame, Terminal,
 };
 use ratatui_which_key::{CrosstermKeymapExt, CrosstermStateExt, Keymap, WhichKey, WhichKeyState};
 use std::io;
@@ -258,7 +258,7 @@ fn ui(frame: &mut Frame, app: &mut App) {
 
     if app.which_key_state.active {
         let widget = WhichKey::new().border_style(Style::default().fg(Color::Green));
-        widget.render(frame.buffer_mut(), &mut app.which_key_state);
+        widget.render(frame.buffer_mut(), &app.which_key_state);
     }
 }
 
