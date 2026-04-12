@@ -3,6 +3,10 @@
 ### 🐛 Bug Fixes
 
 - Remove mut requirement
+
+### ⚙️ Miscellaneous Tasks
+
+- Changelog update
 ## [0.7.0] - 2026-04-12
 
 ### 🚀 Features
