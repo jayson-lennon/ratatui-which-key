@@ -1,3 +1,8 @@
+## [0.8.0] - 2026-04-12
+
+### 🐛 Bug Fixes
+
+- Remove mut requirement
 ## [0.7.0] - 2026-04-12
 
 ### 🚀 Features
@@ -15,6 +20,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Version bump
+- Release ratatui-which-key version 0.7.0
 ## [0.6.2] - 2026-04-04
 
 ### 🚀 Features
