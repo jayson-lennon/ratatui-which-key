@@ -1,3 +1,16 @@
+## [0.7.0] - 2026-04-12
+
+### 🚀 Features
+
+- Add <lt> and <gt> special key names for literal angle brackets
+
+### 🚜 Refactor
+
+- Eliminate redundant clones and unnecessary allocations
+
+### 🧪 Testing
+
+- Add regression tests for scope group visibility isolation
 ## [0.6.2] - 2026-04-04
 
 ### 🚀 Features
@@ -12,6 +25,7 @@
 
 - Version bump
 - Changelog update
+- Release ratatui-which-key version 0.6.2
 ## [0.6.1] - 2026-04-03
 
 ### 🐛 Bug Fixes
