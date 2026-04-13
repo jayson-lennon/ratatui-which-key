@@ -935,22 +935,6 @@ mod tests {
         }
     }
 
-    fn get_leaf_entry_count<S: Clone + PartialEq, A: Clone, C: Clone + PartialEq>(
-        keymap: &Keymap<KeyEvent, S, A, C>,
-        key: KeyEvent,
-    ) -> usize {
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == key)
-            .expect("binding");
-        if let KeyNode::Leaf(entries) = &child.node {
-            entries.len()
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
     #[test]
     fn new_creates_empty_keymap_with_space_leader() {
         // Given no key bindings.
@@ -1028,200 +1012,62 @@ mod tests {
     }
 
     #[test]
-    fn navigate_with_custom_leader_key() {
-        // Given a keymap with a custom leader key 'a'.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
+    fn custom_leader_navigation_works_across_builders_and_scopes() {
+        // Given a keymap with a custom leader key 'a' using direct bind.
+        let mut keymap_bind: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
             Keymap::new().with_leader(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()));
-
-        // And binding <leader>gg to Quit.
-        keymap.bind(
+        keymap_bind.bind(
             "<leader>gg",
             TestAction::Quit,
             TestCategory::Navigation,
             TestScope::Global,
         );
 
-        // When navigating to ['a'].
-        let result = keymap.navigate(
-            &[KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a', 'g', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Global,
-        );
-        // Then it returns a Leaf with the Quit action.
-        assert!(matches!(
-            result,
-            Some(NodeResult::Leaf {
-                action: TestAction::Quit
-            })
-        ));
-    }
-
-    #[test]
-    fn scope_and_category_bind_with_custom_leader() {
-        // Given a keymap with a custom leader key 'a'.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
+        // And a keymap with a custom leader key 'a' using scope_and_category builder.
+        let mut keymap_sc: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
             Keymap::new().with_leader(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()));
-
-        // And binding <leader>gg to Quit using scope_and_category builder.
-        keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
+        keymap_sc.scope_and_category(TestScope::Normal, TestCategory::Navigation, |g| {
             g.bind("<leader>gg", TestAction::Quit);
         });
 
-        // When navigating to ['a'].
-        let result = keymap.navigate(
-            &[KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+        // Then both keymaps navigate identically to their respective scopes.
+        for (keymap, scope) in &[
+            (&keymap_bind, TestScope::Global),
+            (&keymap_sc, TestScope::Normal),
+        ] {
+            // Navigating to ['a'] returns a Branch.
+            let result = keymap.navigate(
+                &[KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())],
+                scope,
+            );
+            assert!(matches!(result, Some(NodeResult::Branch { .. })));
 
-        // When navigating to ['a', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
+            // Navigating to ['a', 'g'] returns a Branch.
+            let result = keymap.navigate(
+                &[
+                    KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+                    KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+                ],
+                scope,
+            );
+            assert!(matches!(result, Some(NodeResult::Branch { .. })));
 
-        // When navigating to ['a', 'g', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Global,
-        );
-        // Then it returns a Leaf with the Quit action.
-        assert!(matches!(
-            result,
-            Some(NodeResult::Leaf {
-                action: TestAction::Quit
-            })
-        ));
-    }
-
-    #[test]
-    fn demo_setup_with_custom_leader_and_zxc() {
-        // Given a keymap with a custom leader key 'a'.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
-            Keymap::new().with_leader(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()));
-
-        // And binding both <leader>gg to Quit and zxc to Save.
-        keymap.scope_and_category(TestScope::Global, TestCategory::Navigation, |g| {
-            g.bind("<leader>gg", TestAction::Quit)
-                .bind("zxc", TestAction::Save);
-        });
-
-        // When checking the root-level bindings count.
-        // Then there are exactly two root-level bindings ('a' and 'z').
-        assert_eq!(keymap.bindings().len(), 2);
-
-        // When navigating to ['z'].
-        let result = keymap.navigate(
-            &[KeyEvent::new(KeyCode::Char('z'), KeyModifiers::empty())],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (zxc works).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a'].
-        let result = keymap.navigate(
-            &[KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())],
-            &TestScope::Global,
-        );
-        // Then it returns a Branch (agg should work too).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a', 'g', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Global,
-        );
-        // Then it returns a Leaf with the Quit action.
-        assert!(matches!(
-            result,
-            Some(NodeResult::Leaf {
-                action: TestAction::Quit
-            })
-        ));
-    }
-
-    #[test]
-    fn navigate_with_normal_scope_and_custom_leader() {
-        // Given a keymap with a custom leader key 'a'.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> =
-            Keymap::new().with_leader(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()));
-
-        // And binding <leader>gg to Quit using Normal scope.
-        keymap.scope_and_category(TestScope::Normal, TestCategory::Navigation, |g| {
-            g.bind("<leader>gg", TestAction::Quit);
-        });
-
-        // When navigating to ['a'].
-        let result = keymap.navigate(
-            &[KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())],
-            &TestScope::Normal,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Normal,
-        );
-        // Then it returns a Branch (not None).
-        assert!(matches!(result, Some(NodeResult::Branch { .. })));
-
-        // When navigating to ['a', 'g', 'g'].
-        let result = keymap.navigate(
-            &[
-                KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
-            ],
-            &TestScope::Normal,
-        );
-        // Then it returns a Leaf with the Quit action.
-        assert!(matches!(
-            result,
-            Some(NodeResult::Leaf {
-                action: TestAction::Quit
-            })
-        ));
+            // Navigating to ['a', 'g', 'g'] returns a Leaf with Quit.
+            let result = keymap.navigate(
+                &[
+                    KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()),
+                    KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+                    KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+                ],
+                scope,
+            );
+            assert!(matches!(
+                result,
+                Some(NodeResult::Leaf {
+                    action: TestAction::Quit
+                })
+            ));
+        }
     }
 
     #[test]
@@ -1245,11 +1091,11 @@ mod tests {
     }
 
     #[test]
-    fn multi_key_binding_count_is_one() {
+    fn multi_key_binding_creates_branch_with_leaf_child() {
         // Given an empty keymap.
         let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
 
-        // When binding a multi-key sequence.
+        // When binding a multi-key sequence "gg".
         keymap.bind(
             "gg",
             TestAction::Quit,
@@ -1257,24 +1103,10 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then there is exactly one binding (plus leader group).
+        // Then there is one root binding plus the leader group.
         assert_eq!(keymap.bindings().len(), 2);
-    }
 
-    #[test]
-    fn multi_key_root_key_is_g() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a multi-key sequence.
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the root key is 'g' (find it, not leader).
+        // And the root key is 'g' and is a branch.
         let child = keymap
             .bindings()
             .iter()
@@ -1284,105 +1116,15 @@ mod tests {
             child.key,
             KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())
         );
-    }
-
-    #[test]
-    fn multi_key_root_is_branch() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a multi-key sequence.
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the root node is a branch (find 'g', not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
         assert!(child.node.is_branch());
-    }
 
-    #[test]
-    fn multi_key_second_level_count_is_one() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a multi-key sequence.
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the branch has one child (find 'g', not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
+        // And the branch has one child with key 'g' that is a leaf.
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children.len(), 1);
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
-    fn multi_key_second_level_key_is_g() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a multi-key sequence.
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the second level key is 'g' (find 'g' binding, not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(
                 children[0].key,
                 KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())
             );
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
-    fn multi_key_second_level_is_leaf() {
-        // Given an empty keymap.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-
-        // When binding a multi-key sequence.
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the second level node is a leaf (find 'g' binding, not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
             assert!(matches!(children[0].node, KeyNode::Leaf(_)));
         } else {
             panic!("expected branch node");
@@ -1390,7 +1132,8 @@ mod tests {
     }
 
     #[test]
-    fn same_scope_multi_entry_count_is_two() {
+    fn binding_same_key_different_scopes_creates_multiple_entries() {
+        // Given a keymap with "<esc>" bound in Global scope.
         let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
             "<esc>",
             TestAction::Quit,
@@ -1398,6 +1141,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // When binding "<esc>" again in Insert scope.
         keymap.bind(
             "<esc>",
             TestAction::Save,
@@ -1405,56 +1149,16 @@ mod tests {
             TestScope::Insert,
         );
 
-        let count =
-            get_leaf_entry_count(&keymap, KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()));
-
-        assert_eq!(count, 2);
-    }
-
-    #[test]
-    fn same_scope_multi_entry_first_scope_is_global() {
-        let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
-            "<esc>",
-            TestAction::Quit,
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        keymap.bind(
-            "<esc>",
-            TestAction::Save,
-            TestCategory::General,
-            TestScope::Insert,
-        );
-
+        // Then the leaf has two entries with the correct scopes.
         let entries = get_leaf_entries(&keymap, KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()));
-
+        assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].0, TestScope::Global);
-    }
-
-    #[test]
-    fn same_scope_multi_entry_second_scope_is_insert() {
-        let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
-            "<esc>",
-            TestAction::Quit,
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        keymap.bind(
-            "<esc>",
-            TestAction::Save,
-            TestCategory::General,
-            TestScope::Insert,
-        );
-
-        let entries = get_leaf_entries(&keymap, KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()));
-
         assert_eq!(entries[1].0, TestScope::Insert);
     }
 
     #[test]
-    fn same_scope_update_entry_count_is_one() {
+    fn binding_same_key_same_scope_updates_existing_entry() {
+        // Given a keymap with "q" bound to Quit/General in Global scope.
         let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
             "q",
             TestAction::Quit,
@@ -1462,6 +1166,7 @@ mod tests {
             TestScope::Global,
         );
 
+        // When rebinding "q" to Save/Navigation in the same scope.
         keymap.bind(
             "q",
             TestAction::Save,
@@ -1469,84 +1174,15 @@ mod tests {
             TestScope::Global,
         );
 
-        let count = get_leaf_entry_count(
-            &keymap,
-            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
-        );
-
-        assert_eq!(count, 1);
-    }
-
-    #[test]
-    fn same_scope_update_action_is_save() {
-        let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
-            "q",
-            TestAction::Quit,
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        keymap.bind(
-            "q",
-            TestAction::Save,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
+        // Then the single entry is updated with new action, description, and category.
         let entries = get_leaf_entries(
             &keymap,
             KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
         );
-
+        assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].1, TestAction::Save);
-    }
-
-    #[test]
-    fn same_scope_update_description_is_save() {
-        let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
-            "q",
-            TestAction::Quit,
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        keymap.bind(
-            "q",
-            TestAction::Save,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let entries = get_leaf_entries(
-            &keymap,
-            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
-        );
-
-        assert_eq!(entries[0].3, "save");
-    }
-
-    #[test]
-    fn same_scope_update_category_is_navigation() {
-        let mut keymap = keymap_with_binding::<KeyEvent, TestScope, TestAction, TestCategory>(
-            "q",
-            TestAction::Quit,
-            TestCategory::General,
-            TestScope::Global,
-        );
-
-        keymap.bind(
-            "q",
-            TestAction::Save,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        let entries = get_leaf_entries(
-            &keymap,
-            KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
-        );
-
         assert_eq!(entries[0].2, TestCategory::Navigation);
+        assert_eq!(entries[0].3, "save");
     }
 
     #[test]
@@ -1568,7 +1204,7 @@ mod tests {
     }
 
     #[test]
-    fn branch_extension_binding_count_is_one() {
+    fn branch_extension_adds_sibling_to_existing_branch() {
         // Given a keymap with a "gg" binding.
         let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
         keymap.bind(
@@ -1586,61 +1222,10 @@ mod tests {
             TestScope::Global,
         );
 
-        // Then there is still only one binding at the root (plus leader group).
+        // Then there is still one root binding (plus leader group).
         assert_eq!(keymap.bindings().len(), 2);
-    }
 
-    #[test]
-    fn branch_extension_root_key_is_g() {
-        // Given a keymap with a "gg" binding.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // When binding "gd" which extends the same branch.
-        keymap.bind(
-            "gd",
-            TestAction::Open,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the root key is 'g' (find it, not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
-        assert_eq!(
-            child.key,
-            KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())
-        );
-    }
-
-    #[test]
-    fn branch_extension_children_count_is_two() {
-        // Given a keymap with a "gg" binding.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // When binding "gd" which extends the same branch.
-        keymap.bind(
-            "gd",
-            TestAction::Open,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the branch has two children (find the 'g' binding, not leader).
+        // And the 'g' branch has two children: 'g' and 'd'.
         let child = keymap
             .bindings()
             .iter()
@@ -1648,72 +1233,9 @@ mod tests {
             .expect("g binding");
         if let KeyNode::Branch { children, .. } = &child.node {
             assert_eq!(children.len(), 2);
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
-    fn branch_extension_includes_d_key() {
-        // Given a keymap with a "gg" binding.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // When binding "gd" which extends the same branch.
-        keymap.bind(
-            "gd",
-            TestAction::Open,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the branch includes the 'd' key (find the 'g' binding, not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
-            let keys: Vec<_> = children.iter().map(|c| c.key).collect();
-            assert!(keys.contains(&KeyEvent::new(KeyCode::Char('d'), KeyModifiers::empty())));
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
-    fn branch_extension_preserves_g_key() {
-        // Given a keymap with a "gg" binding.
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.bind(
-            "gg",
-            TestAction::Quit,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // When binding "gd" which extends the same branch.
-        keymap.bind(
-            "gd",
-            TestAction::Open,
-            TestCategory::Navigation,
-            TestScope::Global,
-        );
-
-        // Then the branch still includes the 'g' key (find the 'g' binding, not leader).
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()))
-            .expect("g binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
             let keys: Vec<_> = children.iter().map(|c| c.key).collect();
             assert!(keys.contains(&KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())));
+            assert!(keys.contains(&KeyEvent::new(KeyCode::Char('d'), KeyModifiers::empty())));
         } else {
             panic!("expected branch node");
         }
@@ -2015,18 +1537,15 @@ mod tests {
     }
 
     #[test]
-    fn single_level_branch_count_is_one() {
+    fn describe_group_creates_empty_branch() {
+        // Given an empty keymap.
         let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+
+        // When describing a single-level prefix.
         keymap.describe_group("a", "single command");
 
+        // Then a branch is created with the description and no children.
         assert_eq!(keymap.bindings().len(), 2);
-    }
-
-    #[test]
-    fn single_level_branch_key_is_a() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("a", "single command");
-
         let child = keymap
             .bindings()
             .iter()
@@ -2036,31 +1555,8 @@ mod tests {
             child.key,
             KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())
         );
-    }
-
-    #[test]
-    fn single_level_branch_description_is_set() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("a", "single command");
-
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
-            .expect("a binding");
-        if let KeyNode::Branch { description, .. } = &child.node {
+        if let KeyNode::Branch { description, children, .. } = &child.node {
             assert_eq!(*description, "single command");
-        } else {
-            panic!("expected branch node");
-        }
-    }
-
-    #[test]
-    fn single_level_branch_has_no_children() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("a", "single command");
-
-        if let KeyNode::Branch { children, .. } = &keymap.bindings()[0].node {
             assert!(children.is_empty());
         } else {
             panic!("expected branch node");
@@ -2068,94 +1564,32 @@ mod tests {
     }
 
     #[test]
-    fn nested_branches_first_key_is_a() {
+    fn describe_group_creates_nested_branch_structure() {
+        // Given an empty keymap.
         let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+
+        // When describing a nested prefix "abc".
         keymap.describe_group("abc", "nested command");
 
+        // Then the first level is a branch with key 'a' and description.
         let child = keymap
             .bindings()
             .iter()
             .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
             .expect("a binding");
-        assert_eq!(
-            child.key,
-            KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty())
-        );
-    }
-
-    #[test]
-    fn nested_branches_first_description_is_nested_command() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("abc", "nested command");
-
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
-            .expect("a binding");
-        if let KeyNode::Branch { description, .. } = &child.node {
+        if let KeyNode::Branch { description, children, .. } = &child.node {
             assert_eq!(*description, "nested command");
-        } else {
-            panic!("expected branch node at 'a'");
-        }
-    }
-
-    #[test]
-    fn nested_branches_second_key_is_b() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("abc", "nested command");
-
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
-            .expect("a binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
+            // And the second level has key 'b' and is a branch.
             assert_eq!(
                 children[0].key,
                 KeyEvent::new(KeyCode::Char('b'), KeyModifiers::empty())
             );
-        } else {
-            panic!("expected branch node at 'a'");
-        }
-    }
-
-    #[test]
-    fn nested_branches_third_key_is_c() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("abc", "nested command");
-
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
-            .expect("a binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
             if let KeyNode::Branch { children, .. } = &children[0].node {
+                // And the third level has key 'c' and is an empty branch.
                 assert_eq!(
                     children[0].key,
                     KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty())
                 );
-            } else {
-                panic!("expected branch node at 'b'");
-            }
-        } else {
-            panic!("expected branch node at 'a'");
-        }
-    }
-
-    #[test]
-    fn nested_branches_third_level_is_leaf() {
-        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
-        keymap.describe_group("abc", "nested command");
-
-        let child = keymap
-            .bindings()
-            .iter()
-            .find(|c| c.key == KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty()))
-            .expect("a binding");
-        if let KeyNode::Branch { children, .. } = &child.node {
-            if let KeyNode::Branch { children, .. } = &children[0].node {
                 if let KeyNode::Branch { children, .. } = &children[0].node {
                     assert!(children.is_empty());
                 } else {
@@ -2223,269 +1657,49 @@ mod tests {
     }
 
     #[test]
-    fn scope_groups_binds_first_key_count_is_one() {
-        // Given a keymap with a global 'q' binding.
+    fn scope_builder_creates_leaf_bindings() {
+        // Given a keymap with multiple bindings via scope builder.
         let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
         keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, TestCategory::General);
+            b.bind("q", TestAction::Quit, TestCategory::General)
+                .bind("w", TestAction::Save, TestCategory::General)
+                .bind("h", TestAction::Open, TestCategory::Navigation);
         });
 
-        // When checking bindings count.
-        // Then there is exactly one binding (plus leader group).
-        assert_eq!(keymap.bindings().len(), 2);
-    }
+        // Then there are three bindings (plus leader group).
+        assert_eq!(keymap.bindings().len(), 4);
 
-    #[test]
-    fn scope_groups_binds_first_key_node_exists() {
-        // Given a keymap with a global 'q' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, TestCategory::General);
-        });
+        // And each binding is a leaf with the correct scope, action, and category.
+        let cases = [
+            (
+                KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
+                TestAction::Quit,
+                TestCategory::General,
+            ),
+            (
+                KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty()),
+                TestAction::Save,
+                TestCategory::General,
+            ),
+            (
+                KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty()),
+                TestAction::Open,
+                TestCategory::Navigation,
+            ),
+        ];
 
-        // When looking up the node at path ['q'].
-        let node =
-            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())]);
-
-        // Then the node exists.
-        assert!(node.is_some());
-    }
-
-    #[test]
-    fn scope_groups_binds_first_key_entry_count_is_one() {
-        // Given a keymap with a global 'q' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, TestCategory::General);
-        });
-
-        // When checking entry count at path ['q'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then there is exactly one entry.
-            assert_eq!(entries.len(), 1);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_first_key_scope_is_global() {
-        // Given a keymap with a global 'q' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, TestCategory::General);
-        });
-
-        // When checking the scope at path ['q'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the scope is Global.
-            assert_eq!(entries[0].scope, TestScope::Global);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_first_key_action_is_quit() {
-        // Given a keymap with a global 'q' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("q", TestAction::Quit, TestCategory::General);
-        });
-
-        // When checking the action at path ['q'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the action is Quit.
-            assert_eq!(entries[0].action, TestAction::Quit);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_second_key_count_is_one() {
-        // Given a keymap with a global 'w' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, TestCategory::General);
-        });
-
-        // When checking bindings count.
-        // Then there is exactly one binding (plus leader group).
-        assert_eq!(keymap.bindings().len(), 2);
-    }
-
-    #[test]
-    fn scope_groups_binds_second_key_node_exists() {
-        // Given a keymap with a global 'w' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, TestCategory::General);
-        });
-
-        // When looking up the node at path ['w'].
-        let node =
-            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty())]);
-
-        // Then the node exists.
-        assert!(node.is_some());
-    }
-
-    #[test]
-    fn scope_groups_binds_second_key_entry_count_is_one() {
-        // Given a keymap with a global 'w' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, TestCategory::General);
-        });
-
-        // When checking entry count at path ['w'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then there is exactly one entry.
-            assert_eq!(entries.len(), 1);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_second_key_scope_is_global() {
-        // Given a keymap with a global 'w' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, TestCategory::General);
-        });
-
-        // When checking the scope at path ['w'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the scope is Global.
-            assert_eq!(entries[0].scope, TestScope::Global);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_second_key_action_is_save() {
-        // Given a keymap with a global 'w' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("w", TestAction::Save, TestCategory::General);
-        });
-
-        // When checking the action at path ['w'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('w'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the action is Save.
-            assert_eq!(entries[0].action, TestAction::Save);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_third_key_count_is_one() {
-        // Given a keymap with a global 'h' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, TestCategory::Navigation);
-        });
-
-        // When checking bindings count.
-        // Then there is exactly one binding (plus leader group).
-        assert_eq!(keymap.bindings().len(), 2);
-    }
-
-    #[test]
-    fn scope_groups_binds_third_key_node_exists() {
-        // Given a keymap with a global 'h' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, TestCategory::Navigation);
-        });
-
-        // When looking up the node at path ['h'].
-        let node =
-            keymap.get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())]);
-
-        // Then the node exists.
-        assert!(node.is_some());
-    }
-
-    #[test]
-    fn scope_groups_binds_third_key_entry_count_is_one() {
-        // Given a keymap with a global 'h' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, TestCategory::Navigation);
-        });
-
-        // When checking entry count at path ['h'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then there is exactly one entry.
-            assert_eq!(entries.len(), 1);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_third_key_scope_is_global() {
-        // Given a keymap with a global 'h' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, TestCategory::Navigation);
-        });
-
-        // When checking the scope at path ['h'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the scope is Global.
-            assert_eq!(entries[0].scope, TestScope::Global);
-        } else {
-            panic!("expected leaf node");
-        }
-    }
-
-    #[test]
-    fn scope_groups_binds_third_key_action_is_open() {
-        // Given a keymap with a global 'h' binding.
-        let mut keymap = Keymap::<KeyEvent, TestScope, TestAction, TestCategory>::new();
-        keymap.scope(TestScope::Global, |b| {
-            b.bind("h", TestAction::Open, TestCategory::Navigation);
-        });
-
-        // When checking the action at path ['h'].
-        let node = keymap
-            .get_node_at_path(&[KeyEvent::new(KeyCode::Char('h'), KeyModifiers::empty())])
-            .expect("node exists");
-        if let KeyNode::Leaf(entries) = node {
-            // Then the action is Open.
-            assert_eq!(entries[0].action, TestAction::Open);
-        } else {
-            panic!("expected leaf node");
+        for (key, expected_action, expected_category) in cases {
+            let node = keymap.get_node_at_path(&[key]).unwrap_or_else(|| {
+                panic!("expected node at key {key:?}")
+            });
+            if let KeyNode::Leaf(entries) = node {
+                assert_eq!(entries.len(), 1, "expected 1 entry at key {key:?}");
+                assert_eq!(entries[0].scope, TestScope::Global);
+                assert_eq!(entries[0].action, expected_action);
+                assert_eq!(entries[0].category, expected_category);
+            } else {
+                panic!("expected leaf node at key {key:?}");
+            }
         }
     }
 
