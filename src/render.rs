@@ -835,4 +835,146 @@ mod tests {
         assert_eq!(flat[1].0.display(), "b");
         assert_eq!(flat[2].0.display(), "c");
     }
+
+    #[test]
+    fn flat_wide_uses_max_5_columns() {
+        // Given 30 bindings (enough to fill 5 columns), frame width = 200.
+        let groups = make_groups(&[
+            ("X", &[
+                ("a", "aa"), ("b", "bb"), ("c", "cc"), ("d", "dd"), ("e", "ee"),
+                ("f", "ff"), ("g", "gg"), ("h", "hh"), ("i", "ii"), ("j", "jj"),
+            ]),
+            ("Y", &[
+                ("k", "kk"), ("l", "ll"), ("m", "mm"), ("n", "nn"), ("o", "oo"),
+                ("p", "pp"), ("q", "qq"), ("r", "rr"), ("s", "ss"), ("t", "tt"),
+            ]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns.
+        let columns = build_columns(&groups, &config, 20, 200);
+
+        // Then result has exactly 5 columns (available=196, 5×30 + 4×6 = 174 ≤ 196).
+        assert_eq!(columns.len(), 5);
+
+        // And all columns have content_width 30.
+        for col in &columns {
+            assert_eq!(col.content_width(), 30);
+        }
+
+        // And no bindings are dropped.
+        assert_eq!(total_bindings(&columns), 20);
+    }
+
+    #[test]
+    fn flat_wide_uses_min_3_columns() {
+        // Given 10 bindings, frame width = 50 (very narrow).
+        let groups = make_groups(&[
+            ("X", &[("a", "a"), ("b", "b"), ("c", "c"), ("d", "d"), ("e", "e")]),
+            ("Y", &[("f", "f"), ("g", "g"), ("h", "h"), ("i", "i"), ("j", "j")]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns.
+        let columns = build_columns(&groups, &config, 20, 50);
+
+        // Then result has exactly 3 columns (minimum).
+        assert_eq!(columns.len(), 3);
+
+        // And column width is reduced (available=46, fallback: (46-12)/3 = 11).
+        for col in &columns {
+            assert_eq!(col.content_width(), 11);
+        }
+
+        // And no bindings are dropped.
+        assert_eq!(total_bindings(&columns), 10);
+    }
+
+    #[test]
+    fn flat_wide_reduces_column_width_when_terminal_narrow() {
+        // Given 10 bindings, frame width = 80 (can't fit 3 cols at 30).
+        let groups = make_groups(&[
+            ("X", &[("a", "a"), ("b", "b"), ("c", "c"), ("d", "d"), ("e", "e")]),
+            ("Y", &[("f", "f"), ("g", "g"), ("h", "h"), ("i", "i"), ("j", "j")]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns.
+        let columns = build_columns(&groups, &config, 20, 80);
+
+        // Then column width is reduced below max 30 (available=76, fallback: (76-12)/3 = 21).
+        assert_eq!(columns.len(), 3);
+        for col in &columns {
+            assert!(col.content_width() < 30, "Expected col_width < 30, got {}", col.content_width());
+            assert_eq!(col.content_width(), 21);
+        }
+    }
+
+    #[test]
+    fn flat_wide_truncates_descriptions() {
+        // Given 3 bindings with long descriptions, frame width = 50.
+        let groups = make_groups(&[
+            ("X", &[
+                ("a", "a very long description that won't fit"),
+                ("b", "another lengthy description text"),
+                ("c", "yet another long description here"),
+            ]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns.
+        let columns = build_columns(&groups, &config, 20, 50);
+
+        // Then max_desc_width is capped to fit column width (col_width=11, max_key_width=1 → max_desc=9).
+        assert_eq!(columns.len(), 3);
+        for col in &columns {
+            assert_eq!(col.max_desc_width, 9);
+        }
+    }
+
+    #[test]
+    fn flat_wide_equal_column_widths() {
+        // Given 10 bindings with varying key/description lengths, frame width = 150.
+        let groups = make_groups(&[
+            ("X", &[
+                ("a", "short"), ("b", "a bit longer"), ("c", "medium desc"),
+                ("d", "x"), ("e", "the longest description of them all"),
+            ]),
+            ("Y", &[
+                ("f", "tiny"), ("g", "another medium"), ("h", "ok"),
+                ("i", "something"), ("j", "last one here"),
+            ]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns.
+        let columns = build_columns(&groups, &config, 20, 150);
+
+        // Then all columns have equal content_width (available=146, 4×30 + 3×6 = 138 ≤ 146 → width 30).
+        assert!(columns.len() >= 3);
+        let expected_width = columns[0].content_width();
+        for col in &columns {
+            assert_eq!(col.content_width(), expected_width);
+        }
+    }
+
+    #[test]
+    fn flat_wide_6_space_gap() {
+        // Given 10 bindings, frame width = 150.
+        let groups = make_groups(&[
+            ("X", &[("a", "a"), ("b", "b"), ("c", "c"), ("d", "d"), ("e", "e")]),
+            ("Y", &[("f", "f"), ("g", "g"), ("h", "h"), ("i", "i"), ("j", "j")]),
+        ]);
+        let config = make_config(DisplayMode::Flat, LayoutStrategy::PreferWide);
+
+        // When building columns and calculating popup area.
+        let columns = build_columns(&groups, &config, 20, 150);
+        let frame_area = Rect::new(0, 0, 150, 20);
+        let title = " Shortcuts ";
+        let popup_area = calculate_popup_area(&config, frame_area, &columns, title);
+
+        // Then popup width includes 6-space gaps (4 cols × 30 + 3 gaps × 6 + 4 borders/padding = 142).
+        assert_eq!(columns.len(), 4);
+        assert_eq!(popup_area.width, 142);
+    }
 }
