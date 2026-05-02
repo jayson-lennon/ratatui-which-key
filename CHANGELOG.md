@@ -7,6 +7,10 @@
 ### 🚜 Refactor
 
 - Consolidate duplicated keymap tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Changelog update
 ## [0.8.0] - 2026-04-12
 
 ### 🐛 Bug Fixes
