@@ -23,6 +23,15 @@ use ratatui::{
 
 use crate::{BindingGroup, DisplayMode, Key, LayoutStrategy, WhichKey, WhichKeyState};
 
+/// Minimum whitespace between columns for Flat+Wide layout.
+const FLAT_WIDE_COLUMN_GAP: usize = 6;
+/// Maximum column width for Flat+Wide layout.
+const FLAT_WIDE_MAX_COL_WIDTH: usize = 30;
+/// Minimum number of columns for Flat+Wide layout.
+const FLAT_WIDE_MIN_COLS: usize = 3;
+/// Maximum number of columns for Flat+Wide layout.
+const FLAT_WIDE_MAX_COLS: usize = 5;
+
 /// Render the which-key popup.
 pub fn render_popup<K, S, A, C>(
     config: &WhichKey,
@@ -62,7 +71,8 @@ pub fn render_popup<K, S, A, C>(
     block.render(popup_area, buf);
 
     // Render columns
-    let column_areas = layout_columns(&columns, inner_area);
+    let column_gap = flat_wide_column_gap(config);
+    let column_areas = layout_columns(&columns, inner_area, column_gap);
     for (col_area, col_data) in column_areas.iter().zip(columns.iter()) {
         render_column(buf, *col_area, col_data, config);
     }
@@ -74,11 +84,17 @@ struct ColumnData<K: Key> {
     groups: Vec<(String, Vec<(K, String)>)>,
     max_key_width: usize,
     max_desc_width: usize,
+    /// Fixed column width for Flat+Wide. 0 = auto (compute from content).
+    target_column_width: usize,
 }
 
 impl<K: Key> ColumnData<K> {
     const fn content_width(&self) -> usize {
-        self.max_key_width + 1 + self.max_desc_width
+        if self.target_column_width > 0 {
+            self.target_column_width
+        } else {
+            self.max_key_width + 1 + self.max_desc_width
+        }
     }
 
     fn row_count(&self) -> usize {
@@ -157,7 +173,7 @@ fn build_flat_tall<K: Key>(
     distribute_flat_into_columns(items, num_columns)
 }
 
-/// Flat + PreferWide: fixed column width, distribute bindings evenly across columns that fit in terminal width.
+/// Flat + PreferWide: compute column count (3–5) and width (max 30) from terminal width with 6-space gaps.
 fn build_flat_wide<K: Key>(
     groups: &[BindingGroup<K>],
     frame_width: u16,
@@ -167,26 +183,60 @@ fn build_flat_wide<K: Key>(
         return Vec::new();
     }
 
-    let column_gap = 1u16;
-    let column_width = 20u16; // fixed width covering typical key + description
-    let available_width = frame_width.saturating_sub(4); // borders + padding
-    let num_columns = if column_gap > 0 {
-        let with_gaps = (column_width + column_gap)
-            .saturating_mul(u16::try_from(items.len()).unwrap_or(u16::MAX));
-        if with_gaps <= available_width {
-            // Everything fits — use as many columns as needed in one row
-            1u16.max((available_width + column_gap) / (column_width + column_gap))
-        } else {
-            // Compute how many columns fit
-            let cols = (available_width + column_gap) / (column_width + column_gap);
-            1u16.max(cols)
-        }
-    } else {
-        1u16.max(available_width / column_width)
-    };
+    let available = frame_width.saturating_sub(4) as usize;
 
-    let num_columns = num_columns as usize;
-    distribute_flat_into_columns(items, num_columns)
+    // Try to fit as many columns as possible at max width.
+    let (num_columns, col_width) = (FLAT_WIDE_MIN_COLS..=FLAT_WIDE_MAX_COLS)
+        .rev()
+        .find_map(|n| {
+            let needed = n * FLAT_WIDE_MAX_COL_WIDTH + (n - 1) * FLAT_WIDE_COLUMN_GAP;
+            (needed <= available).then_some((n, FLAT_WIDE_MAX_COL_WIDTH))
+        })
+        .unwrap_or_else(|| {
+            let col_width =
+                available.saturating_sub((FLAT_WIDE_MIN_COLS - 1) * FLAT_WIDE_COLUMN_GAP)
+                    / FLAT_WIDE_MIN_COLS;
+            (FLAT_WIDE_MIN_COLS, col_width)
+        });
+
+    let max_key_width = items
+        .iter()
+        .map(|(k, _)| k.display().len())
+        .max()
+        .unwrap_or(1);
+    let max_desc_width = col_width.saturating_sub(max_key_width + 1);
+
+    distribute_flat_wide_columns(items, num_columns, col_width, max_key_width, max_desc_width)
+}
+
+/// Distribute flat bindings across N equal-width columns for Flat+Wide mode.
+fn distribute_flat_wide_columns<K: Key>(
+    items: Vec<(K, String)>,
+    num_columns: usize,
+    col_width: usize,
+    max_key_width: usize,
+    max_desc_width: usize,
+) -> Vec<ColumnData<K>> {
+    let total = items.len();
+    let base = total / num_columns;
+    let extra = total % num_columns;
+
+    let mut columns = Vec::with_capacity(num_columns);
+    let mut offset = 0;
+
+    for i in 0..num_columns {
+        let count = base + usize::from(i < extra);
+        let col_items = items[offset..offset + count].to_vec();
+        offset += count;
+        columns.push(ColumnData {
+            groups: vec![(String::new(), col_items)],
+            max_key_width,
+            max_desc_width,
+            target_column_width: col_width,
+        });
+    }
+
+    columns
 }
 
 /// Distribute flat bindings evenly across N columns (left-to-right alphabetical ordering).
@@ -343,7 +393,37 @@ fn build_column_data<K: Key>(groups: Vec<(String, Vec<(K, String)>)>) -> ColumnD
         groups,
         max_key_width,
         max_desc_width,
+        target_column_width: 0,
     }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+fn flat_wide_column_gap(config: &WhichKey) -> u16 {
+    if config.display_mode == DisplayMode::Flat
+        && config.layout_strategy == LayoutStrategy::PreferWide
+    {
+        FLAT_WIDE_COLUMN_GAP as u16
+    } else {
+        1u16
+    }
+}
+
+/// Truncate a description to `max_width` graphemes, appending `…` when truncated.
+fn truncate_description(desc: &str, max_width: usize) -> String {
+    use unicode_segmentation::UnicodeSegmentation;
+
+    if max_width == 0 {
+        return String::new();
+    }
+    let graphemes: Vec<&str> = desc.graphemes(true).collect();
+    if graphemes.len() <= max_width {
+        return desc.to_string();
+    }
+    let truncated: String = graphemes[..max_width.saturating_sub(1)]
+        .iter()
+        .copied()
+        .collect();
+    format!("{truncated}…")
 }
 
 /// Calculate the popup area based on position and content.
@@ -354,7 +434,7 @@ fn calculate_popup_area<K: Key>(
     columns: &[ColumnData<K>],
     title: &str,
 ) -> Rect {
-    let column_gap = 1u16;
+    let column_gap = flat_wide_column_gap(config);
     let total_content_width: u16 = columns.iter().map(|c| c.content_width() as u16).sum();
     let total_gap = column_gap * columns.len().saturating_sub(1) as u16;
 
@@ -392,8 +472,7 @@ fn calculate_popup_area<K: Key>(
 
 /// Layout columns within the inner area.
 #[allow(clippy::cast_possible_truncation)]
-fn layout_columns<K: Key>(columns: &[ColumnData<K>], inner_area: Rect) -> Vec<Rect> {
-    let column_gap = 1u16;
+fn layout_columns<K: Key>(columns: &[ColumnData<K>], inner_area: Rect, column_gap: u16) -> Vec<Rect> {
     let mut result = Vec::with_capacity(columns.len());
     let mut x = inner_area.x;
 
@@ -438,7 +517,8 @@ fn render_column<K: Key>(
                 format!("{:>width$}", key_display, width = column_data.max_key_width),
                 config.key_style,
             );
-            let desc_span = Span::styled(format!(" {description}"), config.description_style);
+            let desc_display = truncate_description(description, column_data.max_desc_width);
+            let desc_span = Span::styled(format!(" {desc_display}"), config.description_style);
             let line = Line::from(vec![key_span, desc_span]);
             let para = Paragraph::new(line);
             para.render(Rect::new(area.x, y, area.width, 1), buf);
@@ -663,14 +743,13 @@ mod tests {
         // When building columns.
         let columns = build_columns(&groups, &config, 20, 100);
 
-        // Then result has 4 columns (available_width=96, col_width=20, gap=1 → 96/21 = 4).
-        assert_eq!(columns.len(), 4);
+        // Then result has 3 columns (3×30 + 2×6 = 102 > 96, fallback to col_width=28).
+        assert_eq!(columns.len(), 3);
 
-        // And bindings are distributed evenly: first 2 columns get 3, last 2 get 2.
-        assert_eq!(columns[0].groups[0].1.len(), 3);
+        // And bindings are distributed evenly: first column gets 4, rest get 3.
+        assert_eq!(columns[0].groups[0].1.len(), 4);
         assert_eq!(columns[1].groups[0].1.len(), 3);
-        assert_eq!(columns[2].groups[0].1.len(), 2);
-        assert_eq!(columns[3].groups[0].1.len(), 2);
+        assert_eq!(columns[2].groups[0].1.len(), 3);
 
         // And no bindings are dropped.
         assert_eq!(total_bindings(&columns), 10);
