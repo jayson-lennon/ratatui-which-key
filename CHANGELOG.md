@@ -1,3 +1,12 @@
+## [0.9.0] - 2026-05-02
+
+### 🚀 Features
+
+- Rewrite Flat+Wide layout with 6-space gaps, equal-width columns (3-5), and description truncation
+
+### 🚜 Refactor
+
+- Consolidate duplicated keymap tests
 ## [0.8.0] - 2026-04-12
 
 ### 🐛 Bug Fixes
@@ -7,6 +16,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Changelog update
+- Release ratatui-which-key version 0.8.0
 ## [0.7.0] - 2026-04-12
 
 ### 🚀 Features
