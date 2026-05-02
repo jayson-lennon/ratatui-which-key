@@ -27,7 +27,7 @@ use ratatui::{
     text::Line,
     widgets::{Block, Borders, Paragraph},
 };
-use ratatui_which_key::{CrosstermKeymapExt, CrosstermStateExt, Keymap, WhichKey, WhichKeyState};
+use ratatui_which_key::{CrosstermKeymapExt, CrosstermStateExt, DisplayMode, Keymap, LayoutStrategy, WhichKey, WhichKeyState};
 use std::io;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -84,6 +84,10 @@ enum Action {
     NewTab,
     #[display("close tab")]
     CloseTab,
+    #[display("cycle display mode")]
+    CycleDisplayMode,
+    #[display("cycle layout strategy")]
+    CycleLayoutStrategy,
 }
 
 #[rustfmt::skip]
@@ -94,7 +98,9 @@ fn create_keymap() -> Keymap<KeyEvent, Scope, Action, Category> {
     keymap.scope_and_category(Scope::Normal, Category::General, |g| {
         g.bind("q", Action::Quit)
             .bind("?", Action::ToggleHelp)
-            .bind("i", Action::EnterInsert);
+            .bind("i", Action::EnterInsert)
+            .bind("d", Action::CycleDisplayMode)
+            .bind("l", Action::CycleLayoutStrategy);
     });
 
     // Normal mode: .scope_and_category() for Navigation bindings (sequences)
@@ -153,6 +159,8 @@ struct App {
     position: u32,
     messages: Vec<String>,
     running: bool,
+    display_mode: DisplayMode,
+    layout_strategy: LayoutStrategy,
 }
 
 impl App {
@@ -163,7 +171,23 @@ impl App {
             position: 0,
             messages: vec!["Press ? to show keybindings".to_string()],
             running: true,
+            display_mode: DisplayMode::Category,
+            layout_strategy: LayoutStrategy::PreferTall,
         }
+    }
+
+    fn cycle_display_mode(&mut self) {
+        self.display_mode = match self.display_mode {
+            DisplayMode::Category => DisplayMode::Flat,
+            DisplayMode::Flat => DisplayMode::Category,
+        };
+    }
+
+    fn cycle_layout_strategy(&mut self) {
+        self.layout_strategy = match self.layout_strategy {
+            LayoutStrategy::PreferTall => LayoutStrategy::PreferWide,
+            LayoutStrategy::PreferWide => LayoutStrategy::PreferTall,
+        };
     }
 
     fn handle_action(&mut self, action: Action) {
@@ -214,6 +238,14 @@ impl App {
             }
             Action::NewTab => "Opened new tab".to_string(),
             Action::CloseTab => "Closed tab".to_string(),
+            Action::CycleDisplayMode => {
+                self.cycle_display_mode();
+                format!("Display mode: {:?}", self.display_mode)
+            }
+            Action::CycleLayoutStrategy => {
+                self.cycle_layout_strategy();
+                format!("Layout strategy: {:?}", self.layout_strategy)
+            }
         };
         self.messages.push(msg);
         if self.messages.len() > 10 {
@@ -249,7 +281,10 @@ fn ui(frame: &mut Frame, app: &mut App) {
         Scope::Insert => "Insert",
     };
     lines.push(Line::styled(
-        format!("Mode: {mode} | Press ? to show keybindings, q to quit"),
+        format!(
+            "Mode: {mode} | Display: {:?} | Layout: {:?} | Press ? to show keybindings, q to quit",
+            app.display_mode, app.layout_strategy
+        ),
         Style::default().fg(Color::DarkGray),
     ));
 
@@ -257,7 +292,10 @@ fn ui(frame: &mut Frame, app: &mut App) {
     frame.render_widget(paragraph, inner);
 
     if app.which_key_state.active {
-        let widget = WhichKey::new().border_style(Style::default().fg(Color::Green));
+        let widget = WhichKey::new()
+            .display_mode(app.display_mode)
+            .layout_strategy(app.layout_strategy)
+            .border_style(Style::default().fg(Color::Green));
         widget.render(frame.buffer_mut(), &app.which_key_state);
     }
 }

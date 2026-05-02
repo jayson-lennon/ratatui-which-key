@@ -20,6 +20,26 @@ use ratatui::{
 
 use crate::{Key, WhichKeyState, render};
 
+/// How bindings are organized in the popup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DisplayMode {
+    /// Bindings grouped under category headings.
+    #[default]
+    Category,
+    /// All bindings sorted alphabetically, no category headers.
+    Flat,
+}
+
+/// How the popup distributes content across columns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LayoutStrategy {
+    /// Single column first, split into columns only when content exceeds available height.
+    #[default]
+    PreferTall,
+    /// Each category gets its own column; popup height equals the tallest category.
+    PreferWide,
+}
+
 /// Position of the which-key popup on screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PopupPosition {
@@ -40,10 +60,12 @@ pub enum PopupPosition {
 /// The actual state is held in `WhichKeyState`.
 #[derive(Debug, Clone)]
 pub struct WhichKey {
-    /// Maximum height of the popup.
-    pub max_height: u16,
     /// Position of the popup.
     pub position: PopupPosition,
+    /// Display mode for bindings.
+    pub display_mode: DisplayMode,
+    /// Layout strategy for distributing content.
+    pub layout_strategy: LayoutStrategy,
     /// Border style.
     pub border_style: Style,
     /// Key text style.
@@ -57,8 +79,9 @@ pub struct WhichKey {
 impl Default for WhichKey {
     fn default() -> Self {
         Self {
-            max_height: 10,
             position: PopupPosition::default(),
+            display_mode: DisplayMode::default(),
+            layout_strategy: LayoutStrategy::default(),
             border_style: Style::default().fg(Color::Yellow),
             key_style: Style::default().fg(Color::Cyan),
             description_style: Style::default(),
@@ -76,10 +99,17 @@ impl WhichKey {
         Self::default()
     }
 
-    /// Set the maximum height.
+    /// Set the display mode.
     #[must_use]
-    pub fn max_height(mut self, height: u16) -> Self {
-        self.max_height = height;
+    pub fn display_mode(mut self, mode: DisplayMode) -> Self {
+        self.display_mode = mode;
+        self
+    }
+
+    /// Set the layout strategy.
+    #[must_use]
+    pub fn layout_strategy(mut self, strategy: LayoutStrategy) -> Self {
+        self.layout_strategy = strategy;
         self
     }
 

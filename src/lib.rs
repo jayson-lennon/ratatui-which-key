@@ -349,7 +349,7 @@ pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 pub use scope_builder::ScopeBuilder;
 pub use state::WhichKeyState;
 pub use types::{Binding, BindingGroup, DisplayBinding, NodeResult};
-pub use widget::{PopupPosition, WhichKey};
+pub use widget::{DisplayMode, LayoutStrategy, PopupPosition, WhichKey};
 
 #[cfg(feature = "crossterm")]
 pub use crossterm::{CrosstermKeymapExt, CrosstermStateExt, EventResult};

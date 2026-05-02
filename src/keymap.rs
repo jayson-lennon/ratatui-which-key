@@ -909,6 +909,15 @@ mod tests {
         Navigation,
     }
 
+    impl std::fmt::Display for TestCategory {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestCategory::General => write!(f, "General"),
+                TestCategory::Navigation => write!(f, "Navigation"),
+            }
+        }
+    }
+
     fn get_leaf_entries<S: Clone + PartialEq, A: Clone, C: Clone + PartialEq>(
         keymap: &Keymap<KeyEvent, S, A, C>,
         key: KeyEvent,
@@ -2007,5 +2016,34 @@ mod tests {
         } else {
             panic!("expected Branch result");
         }
+    }
+
+    #[test]
+    fn scope_builder_describe_group_with_two_key_sequence_shows_in_bindings() {
+        // Given a keymap using ScopeBuilder to describe a group and bind a two-key sequence.
+        // This reproduces the pattern: `gm` for model selector with `g` as a "general" prefix.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.scope(TestScope::Normal, |b| {
+            b.bind("q", TestAction::Quit, TestCategory::General)
+             .describe_group("g", "general")
+             .bind("gm", TestAction::Open, TestCategory::General);
+        });
+
+        // When getting bindings for Normal scope.
+        let bindings = keymap.bindings_for_scope(TestScope::Normal);
+
+        // Then the 'g' binding appears in the list.
+        let g_binding = bindings
+            .iter()
+            .flat_map(|g| g.bindings.iter())
+            .find(|b| b.key.display() == "g");
+        assert!(g_binding.is_some(), "'g' binding should appear in Normal scope bindings");
+        assert_eq!(g_binding.unwrap().description, "general");
+
+        // And the flat bindings also include 'g'.
+        let flat = keymap.get_bindings_for_scope(TestScope::Normal);
+        let g_flat = flat.iter().find(|b| b.key.display() == "g");
+        assert!(g_flat.is_some(), "'g' should appear in flat bindings");
+        assert_eq!(g_flat.unwrap().description, "general");
     }
 }

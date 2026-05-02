@@ -546,4 +546,28 @@ mod tests {
         // Then the Quit action is triggered.
         assert_eq!(result, Some(TestAction::Quit));
     }
+
+    #[test]
+    fn toggle_shows_scope_builder_describe_group_in_bindings() {
+        // Given a keymap using ScopeBuilder describe_group + two-key sequence.
+        let mut keymap: Keymap<TestKey, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.scope(TestScope::Global, |b| {
+            b.describe_group("g", "general")
+             .bind("gq", TestAction::Quit, TestCategory::General);
+        });
+
+        let mut state = WhichKeyState::new(keymap, TestScope::Global);
+
+        // When toggling the which-key popup.
+        state.toggle();
+
+        // Then current_bindings includes the 'g' group with description "general".
+        let bindings = state.current_bindings();
+        let g_binding = bindings
+            .iter()
+            .flat_map(|g| g.bindings.iter())
+            .find(|b| b.key.display() == "g");
+        assert!(g_binding.is_some(), "'g' binding should appear after toggle");
+        assert_eq!(g_binding.unwrap().description, "general");
+    }
 }
