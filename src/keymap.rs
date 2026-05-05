@@ -221,6 +221,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions: Vec::new(),
                     children: vec![new_child],
                     leaf_entries: existing_entries,
+                    category: None,
                 };
             }
             KeyNode::Branch { children, .. } => {
@@ -344,12 +345,18 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                             category: entry.category.clone(),
                         })
                 }
-                KeyNode::Branch { leaf_entries, .. } => {
+                KeyNode::Branch { leaf_entries, category, .. } => {
                     if let Some(entry) = leaf_entries.iter().find(|e| e.scope == scope) {
                         Some(DisplayBinding {
                             key: child.key.clone(),
                             description: entry.description.clone(),
                             category: entry.category.clone(),
+                        })
+                    } else if let Some(cat) = category {
+                        Some(DisplayBinding {
+                            key: child.key.clone(),
+                            description: child.node.description(&scope).into_owned(),
+                            category: cat.clone(),
                         })
                     } else {
                         Self::find_category_in_children(&child.node, &scope).map(|category| {
@@ -523,6 +530,52 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         self
     }
 
+    /// Sets a description and explicit category for a prefix key group.
+    ///
+    /// Like [`describe_group`](Self::describe_group), but also assigns a category
+    /// to the branch node itself. When the which-key popup displays root-level
+    /// bindings, this branch will appear under the given category instead of
+    /// inferring it from the first descendant leaf.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ratatui_which_key::Keymap;
+    /// # use crossterm::event::KeyEvent;
+    /// # #[derive(Debug, Clone)]
+    /// # enum Action { Quit }
+    /// # impl std::fmt::Display for Action {
+    /// #     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "quit") }
+    /// # }
+    /// # #[derive(Debug, Clone, PartialEq)]
+    /// # enum Scope { Global }
+    /// # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
+    /// # enum Category { General, Navigation }
+    /// let mut keymap: Keymap<KeyEvent, Scope, Action, Category> = Keymap::new();
+    /// keymap
+    ///     .describe_group_with_category("g", "general", Category::General)
+    ///     .bind("gg", Action::Quit, Category::Navigation, Scope::Global);
+    /// ```
+    pub fn describe_group_with_category(
+        &mut self,
+        prefix: &str,
+        description: &'static str,
+        category: C,
+    ) -> &mut Self
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+        C: Clone,
+    {
+        let keys = parse_key_sequence(prefix, &self.leader_key);
+        if keys.is_empty() {
+            return self;
+        }
+        self.ensure_branch_with_description_and_category(&keys, description, category);
+        self
+    }
+
     /// Sets a scope-specific description for a prefix key group.
     ///
     /// Creates a branch node at the prefix path if it doesn't exist,
@@ -560,9 +613,27 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             return;
         }
         if let Some(child) = self.bindings.iter_mut().find(|c| c.key == keys[0]) {
-            Self::ensure_branch_in_child(child, keys, description);
+            Self::ensure_branch_in_child(child, keys, description, None);
         } else {
-            let new_child = Self::build_branch_tree(keys, description);
+            let new_child = Self::build_branch_tree_with_category(keys, description, None);
+            self.bindings.push(new_child);
+        }
+    }
+
+    fn ensure_branch_with_description_and_category(&mut self, keys: &[K], description: &'static str, category: C)
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+        C: Clone,
+    {
+        if keys.is_empty() {
+            return;
+        }
+        if let Some(child) = self.bindings.iter_mut().find(|c| c.key == keys[0]) {
+            Self::ensure_branch_in_child(child, keys, description, Some(category));
+        } else {
+            let new_child = Self::build_branch_tree_with_category(keys, description, Some(category));
             self.bindings.push(new_child);
         }
     }
@@ -574,23 +645,41 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         A: Clone,
         C: Clone,
     {
+        Self::build_branch_tree_with_category(keys, description, None)
+    }
+
+    fn build_branch_tree_with_category(keys: &[K], description: &'static str, category: Option<C>) -> KeyChild<K, S, A, C>
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+        C: Clone,
+    {
         if keys.len() == 1 {
-            KeyChild::branch(keys[0].clone(), description, Vec::new())
+            KeyChild::branch_with_category(keys[0].clone(), description, Vec::new(), category)
         } else {
             let first = keys[0].clone();
             let rest = &keys[1..];
-            let child = Self::build_branch_tree(rest, description);
-            KeyChild::branch(first, description, vec![child])
+            let child = Self::build_branch_tree_with_category(rest, description, category.clone());
+            KeyChild::branch_with_category(first, description, vec![child], category)
         }
     }
 
-    fn ensure_final_key_is_branch(child: &mut KeyChild<K, S, A, C>, description: &'static str) {
+    fn ensure_final_key_is_branch(child: &mut KeyChild<K, S, A, C>, description: &'static str, category: Option<C>)
+    where
+        C: Clone,
+    {
         match &mut child.node {
             KeyNode::Branch {
-                description: desc, ..
+                description: desc,
+                category: cat,
+                ..
             } => {
                 if *desc == "..." {
                     *desc = description;
+                }
+                if cat.is_none() {
+                    *cat = category;
                 }
             }
             KeyNode::Leaf(_) => {
@@ -599,6 +688,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions: Vec::new(),
                     children: Vec::new(),
                     leaf_entries: Vec::new(),
+                    category,
                 };
             }
         }
@@ -608,13 +698,15 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         child: &mut KeyChild<K, S, A, C>,
         keys: &[K],
         description: &'static str,
+        category: Option<C>,
     ) where
         K: Clone,
         S: Clone,
         A: Clone,
+        C: Clone,
     {
         if keys.len() == 1 {
-            Self::ensure_final_key_is_branch(child, description);
+            Self::ensure_final_key_is_branch(child, description, category);
             return;
         }
 
@@ -628,19 +720,24 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions: Vec::new(),
                     children: vec![new_child],
                     leaf_entries: Vec::new(),
+                    category,
                 };
             }
             KeyNode::Branch {
                 description: desc,
+                category: cat,
                 children,
                 ..
             } => {
                 if *desc == "..." {
                     *desc = description;
                 }
+                if cat.is_none() {
+                    *cat = category;
+                }
 
                 if let Some(next_child) = children.iter_mut().find(|c| c.key == keys[1]) {
-                    Self::ensure_branch_in_child(next_child, remaining, description);
+                    Self::ensure_branch_in_child(next_child, remaining, description, None);
                 } else {
                     let new_child = Self::build_branch_tree(remaining, description);
                     children.push(new_child);
@@ -708,6 +805,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions: Vec::new(),
                     children: vec![new_child],
                     leaf_entries: Vec::new(),
+                    category: None,
                 };
             }
             KeyNode::Branch { children, .. } => {
@@ -750,6 +848,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions: vec![(scope, description)],
                     children: Vec::new(),
                     leaf_entries: Vec::new(),
+                    category: None,
                 };
             }
         }
@@ -2045,5 +2144,68 @@ mod tests {
         let g_flat = flat.iter().find(|b| b.key.display() == "g");
         assert!(g_flat.is_some(), "'g' should appear in flat bindings");
         assert_eq!(g_flat.unwrap().description, "general");
+    }
+
+    #[test]
+    fn describe_group_with_category_sets_branch_category() {
+        // Given a keymap with a described group that has an explicit category.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap
+            .describe_group_with_category("g", "general", TestCategory::General)
+            .bind("gg", TestAction::Quit, TestCategory::Navigation, TestScope::Global)
+            .bind("gm", TestAction::Save, TestCategory::Navigation, TestScope::Global);
+
+        // When getting bindings for Global scope.
+        let bindings = keymap.get_bindings_for_scope(TestScope::Global);
+        let g_binding = bindings.iter().find(|b| b.key.display() == "g");
+
+        // Then 'g' appears under General (not Navigation, which its children use).
+        assert!(g_binding.is_some(), "'g' binding should appear");
+        assert_eq!(g_binding.unwrap().category, TestCategory::General);
+    }
+
+    #[test]
+    fn describe_group_without_category_infers_from_children() {
+        // Given a keymap with a described group but no explicit category.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap
+            .describe_group("g", "general")
+            .bind("gg", TestAction::Quit, TestCategory::Navigation, TestScope::Global);
+
+        // When getting bindings for Global scope.
+        let bindings = keymap.get_bindings_for_scope(TestScope::Global);
+        let g_binding = bindings.iter().find(|b| b.key.display() == "g");
+
+        // Then 'g' infers its category from the first child leaf (Navigation).
+        assert!(g_binding.is_some(), "'g' binding should appear");
+        assert_eq!(g_binding.unwrap().category, TestCategory::Navigation);
+    }
+
+    #[test]
+    fn describe_group_with_category_overrides_child_inference() {
+        // Given a keymap where the first child added has Navigation category,
+        // but the group is explicitly set to General.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap
+            .describe_group_with_category("g", "general", TestCategory::General)
+            .bind("ga", TestAction::Open, TestCategory::Navigation, TestScope::Global)
+            .bind("gb", TestAction::Save, TestCategory::General, TestScope::Global);
+
+        // When getting bindings for Global scope.
+        let bindings = keymap.bindings_for_scope(TestScope::Global);
+        let general = bindings.iter().find(|g| g.category == "General");
+
+        // Then the General group contains 'g'.
+        assert!(general.is_some(), "General category should exist");
+        let keys: Vec<String> = general
+            .unwrap()
+            .bindings
+            .iter()
+            .map(|b| b.key.display())
+            .collect();
+        assert!(
+            keys.iter().any(|k| k == "g"),
+            "General group should contain 'g', found: {keys:?}"
+        );
     }
 }

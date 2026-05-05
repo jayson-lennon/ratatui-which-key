@@ -59,6 +59,27 @@ impl<'a, K: Key, S, A, C> ScopeBuilder<'a, K, S, A, C> {
         self
     }
 
+    /// Sets a description and explicit category for a prefix key group.
+    ///
+    /// Like [`describe_group`](Self::describe_group), but also assigns a category
+    /// to the branch node. See [`Keymap::describe_group_with_category`].
+    pub fn describe_group_with_category(
+        &mut self,
+        prefix: &str,
+        description: &'static str,
+        category: C,
+    ) -> &mut Self
+    where
+        K: Clone,
+        S: Clone,
+        A: Clone,
+        C: Clone,
+    {
+        self.keymap
+            .describe_group_with_category(prefix, description, category);
+        self
+    }
+
     /// Register a catch-all handler for this scope.
     ///
     /// The handler is invoked when a key doesn't match any binding.

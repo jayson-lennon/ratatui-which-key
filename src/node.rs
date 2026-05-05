@@ -44,6 +44,11 @@ pub enum KeyNode<K: Key, S, A, C> {
         children: Vec<KeyChild<K, S, A, C>>,
         /// Leaf entries for scopes where this key is a terminal action.
         leaf_entries: Vec<LeafEntry<S, A, C>>,
+        /// Explicit category override for this branch node.
+        ///
+        /// When set, [`KeyNode::category`] returns this value instead of
+        /// recursing into children. Set via [`Keymap::describe_group_with_category`].
+        category: Option<C>,
     },
 }
 
@@ -81,14 +86,18 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
         matches!(self, KeyNode::Branch { .. })
     }
 
-    /// Returns the category of the first leaf entry, or `None` for branches.
+    /// Returns the category of this node.
+    ///
+    /// For leaves, returns the first entry's category.
+    /// For branches with an explicit category, returns that.
+    /// For branches without, returns `None`.
     pub fn category(&self) -> Option<C>
     where
         C: Clone,
     {
         match self {
             KeyNode::Leaf(entries) => entries.first().map(|e| e.category.clone()),
-            KeyNode::Branch { .. } => None,
+            KeyNode::Branch { category, .. } => category.clone(),
         }
     }
 
@@ -145,7 +154,20 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
     }
 
     /// Creates a branch key child with the given description and children.
-    pub fn branch(key: K, description: &'static str, children: Vec<Self>) -> Self {
+    pub fn branch(key: K, description: &'static str, children: Vec<Self>) -> Self
+    where
+        C: Clone,
+    {
+        Self::branch_with_category(key, description, children, None)
+    }
+
+    /// Creates a branch key child with an explicit category.
+    pub fn branch_with_category(
+        key: K,
+        description: &'static str,
+        children: Vec<Self>,
+        category: Option<C>,
+    ) -> Self {
         Self {
             key,
             node: KeyNode::Branch {
@@ -153,6 +175,7 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
                 scope_descriptions: Vec::new(),
                 children,
                 leaf_entries: Vec::new(),
+                category,
             },
         }
     }
@@ -292,6 +315,7 @@ mod tests {
                 category: TestCategory::General,
                 scope: TestScope::Normal,
             }],
+            category: None,
         };
 
         // When querying the description with TestScope::Insert (which doesn't match the leaf entry scope).
@@ -320,6 +344,7 @@ mod tests {
                 category: TestCategory::General,
                 scope: TestScope::Normal,
             }],
+            category: None,
         };
 
         // When querying the description with TestScope::Normal (which matches the leaf entry scope).
