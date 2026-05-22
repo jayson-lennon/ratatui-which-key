@@ -635,9 +635,9 @@ mod tests {
         // Given 1 category with 20 bindings, frame height = 10 (available = 8).
         let groups = vec![BindingGroup {
             category: "Big".to_string(),
-            bindings: (0..20)
+            bindings: (0u8..20)
                 .map(|i| Binding {
-                    key: TestKey::Char(char::from(b'a' + ((i % 26) as u8))),
+                    key: TestKey::Char(char::from(b'a' + i % 26)),
                     description: format!("action{i}"),
                 })
                 .collect(),
@@ -786,9 +786,9 @@ mod tests {
                 let cat = format!("Cat{ci}");
                 BindingGroup {
                     category: cat,
-                    bindings: (0..10)
+                    bindings: (0u8..10)
                         .map(|i| Binding {
-                            key: TestKey::Char(char::from(b'a' + ((i % 26) as u8))),
+                            key: TestKey::Char(char::from(b'a' + i % 26)),
                             description: format!("action{i}"),
                         })
                         .collect(),
