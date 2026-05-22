@@ -26,6 +26,13 @@ impl Key for crossterm::event::KeyEvent {
             }
         }
 
+        // Handle Alt-modified keys
+        if self.modifiers.contains(KeyModifiers::ALT) {
+            if let KeyCode::Char(c) = self.code {
+                return format!("<M-{}>", c.to_ascii_lowercase());
+            }
+        }
+
         match self.code {
             KeyCode::Char(' ') => "Space".to_string(),
             KeyCode::Char(c) => c.to_string(),
@@ -87,6 +94,12 @@ impl Key for crossterm::event::KeyEvent {
             return Some(KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL));
         }
 
+        // Handle Alt keys: "m-x"
+        if lower.starts_with("m-") && lower.len() == 3 {
+            let c = lower.chars().nth(2)?;
+            return Some(KeyEvent::new(KeyCode::Char(c), KeyModifiers::ALT));
+        }
+
         let code = match lower.as_str() {
             "tab" => KeyCode::Tab,
             "enter" => KeyCode::Enter,
@@ -114,5 +127,93 @@ impl Key for crossterm::event::KeyEvent {
         };
 
         Some(KeyEvent::new(code, KeyModifiers::empty()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    use crate::Key;
+
+    #[test]
+    fn display_renders_alt_char_as_m_x() {
+        // Given an Alt+X key event.
+        let key = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::ALT);
+
+        // When displaying the key.
+        let display = key.display();
+
+        // Then it renders as <M-x>.
+        assert_eq!(display, "<M-x>");
+    }
+
+    #[test]
+    fn display_renders_alt_uppercase_as_lowercase() {
+        // Given an Alt+J key event (uppercase J).
+        let key = KeyEvent::new(KeyCode::Char('J'), KeyModifiers::ALT);
+
+        // When displaying the key.
+        let display = key.display();
+
+        // Then it renders as <M-j> (lowercase).
+        assert_eq!(display, "<M-j>");
+    }
+
+    #[test]
+    fn from_special_name_parses_m_x_as_alt() {
+        // Given the special name "m-x".
+        let key = KeyEvent::from_special_name("m-x");
+
+        // Then it produces an Alt-modified key.
+        let key = key.expect("should parse m-x");
+        assert_eq!(key.code, KeyCode::Char('x'));
+        assert_eq!(key.modifiers, KeyModifiers::ALT);
+    }
+
+    #[test]
+    fn from_special_name_m_x_is_case_insensitive() {
+        // Given the special name "M-X".
+        let key = KeyEvent::from_special_name("M-X");
+
+        // Then it produces an Alt-modified key with lowercase char.
+        let key = key.expect("should parse M-X");
+        assert_eq!(key.code, KeyCode::Char('x'));
+        assert_eq!(key.modifiers, KeyModifiers::ALT);
+    }
+
+    #[test]
+    fn round_trip_alt_key_display_from_special_name() {
+        // Given an Alt-modified key parsed from special name.
+        let key = KeyEvent::from_special_name("m-j").expect("should parse");
+
+        // When displaying it.
+        let display = key.display();
+
+        // Then the display matches the expected format.
+        assert_eq!(display, "<M-j>");
+    }
+
+    #[test]
+    fn display_still_renders_ctrl_as_c_x() {
+        // Given a Ctrl+X key event (regression guard).
+        let key = KeyEvent::new(KeyCode::Char('x'), KeyModifiers::CONTROL);
+
+        // When displaying the key.
+        let display = key.display();
+
+        // Then it still renders as <C-x>.
+        assert_eq!(display, "<C-x>");
+    }
+
+    #[test]
+    fn from_special_name_still_parses_c_x() {
+        // Given the special name "c-x" (regression guard).
+        let key = KeyEvent::from_special_name("c-x");
+
+        // Then it produces a Ctrl-modified key.
+        let key = key.expect("should parse c-x");
+        assert_eq!(key.code, KeyCode::Char('x'));
+        assert_eq!(key.modifiers, KeyModifiers::CONTROL);
     }
 }

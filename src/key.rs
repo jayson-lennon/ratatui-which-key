@@ -136,4 +136,15 @@ mod tests {
         assert_eq!(keys[0].code, KeyCode::Char('<'));
         assert_eq!(keys[1].code, KeyCode::Char('>'));
     }
+
+    #[test]
+    fn m_x_parses_to_alt_modified_key() {
+        // Given a key sequence containing <m-x>.
+        let keys = parse_key_sequence("<m-x>", &leader());
+
+        // Then it produces a single Alt-modified key.
+        assert_eq!(keys.len(), 1);
+        assert_eq!(keys[0].code, KeyCode::Char('x'));
+        assert_eq!(keys[0].modifiers, KeyModifiers::ALT);
+    }
 }

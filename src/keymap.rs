@@ -2208,4 +2208,30 @@ mod tests {
             "General group should contain 'g', found: {keys:?}"
         );
     }
+
+    #[test]
+    fn alt_key_binding_can_be_navigated() {
+        // Given a keymap with an Alt-modified binding "<m-j>".
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "<m-j>",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+
+        // When navigating to the Alt+j key.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('j'), KeyModifiers::ALT)],
+            &TestScope::Global,
+        );
+
+        // Then the Quit action is returned.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
 }
