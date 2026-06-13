@@ -1,3 +1,8 @@
+## [0.12.1] - 2026-06-13
+
+### 🐛 Bug Fixes
+
+- Preserve leaf bindings when describe_group promotes Leaf to Branch
 ## [0.12.0] - 2026-05-22
 
 ### ⚙️ Miscellaneous Tasks
