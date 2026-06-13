@@ -682,12 +682,17 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     *cat = category;
                 }
             }
-            KeyNode::Leaf(_) => {
+            KeyNode::Leaf(entries) => {
+                // Preserve existing leaf bindings when promoting a Leaf to a
+                // Branch. Without this, calling `describe_group("p")` after
+                // binding "p" in another scope silently drops the original
+                // binding. Mirrors the preservation logic in `insert_into_child`.
+                let existing_entries = std::mem::take(entries);
                 child.node = KeyNode::Branch {
                     description,
                     scope_descriptions: Vec::new(),
                     children: Vec::new(),
-                    leaf_entries: Vec::new(),
+                    leaf_entries: existing_entries,
                     category,
                 };
             }
@@ -713,13 +718,17 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         let remaining = &keys[1..];
 
         match &mut child.node {
-            KeyNode::Leaf(_) => {
+            KeyNode::Leaf(entries) => {
+                // Preserve existing leaf bindings when promoting a Leaf to a
+                // Branch. Without this, a `describe_group` for a multi-key
+                // prefix silently drops the original shorter binding.
+                let existing_entries = std::mem::take(entries);
                 let new_child = Self::build_branch_tree(remaining, description);
                 child.node = KeyNode::Branch {
                     description,
                     scope_descriptions: Vec::new(),
                     children: vec![new_child],
-                    leaf_entries: Vec::new(),
+                    leaf_entries: existing_entries,
                     category,
                 };
             }
@@ -792,7 +801,13 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         let remaining = &keys[1..];
 
         match &mut child.node {
-            KeyNode::Leaf(_) => {
+            KeyNode::Leaf(entries) => {
+                // Preserve existing leaf bindings when promoting a Leaf to a
+                // Branch. Without this, a `describe_group` inside a `scope()`
+                // block silently drops the original binding. This mirrors the
+                // preservation logic in `ensure_final_key_is_branch` and
+                // `insert_into_child`.
+                let existing_entries = std::mem::take(entries);
                 let mut new_child = Self::build_branch_tree(remaining, "...");
                 if let KeyNode::Branch {
                     scope_descriptions, ..
@@ -804,7 +819,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     description: "...",
                     scope_descriptions: Vec::new(),
                     children: vec![new_child],
-                    leaf_entries: Vec::new(),
+                    leaf_entries: existing_entries,
                     category: None,
                 };
             }
@@ -842,12 +857,19 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                     scope_descriptions.push((scope, description));
                 }
             }
-            KeyNode::Leaf(_) => {
+            KeyNode::Leaf(entries) => {
+                // Preserve existing leaf bindings when promoting a Leaf to a
+                // Branch. Without this, a `describe_group` inside a `scope()`
+                // block for a single-key prefix silently drops the original
+                // binding. This mirrors the preservation logic in
+                // `ensure_final_key_is_branch`, `insert_into_child`, and
+                // `set_scope_description_in_child`.
+                let existing_entries = std::mem::take(entries);
                 child.node = KeyNode::Branch {
                     description: "...",
                     scope_descriptions: vec![(scope, description)],
                     children: Vec::new(),
-                    leaf_entries: Vec::new(),
+                    leaf_entries: existing_entries,
                     category: None,
                 };
             }
@@ -2233,5 +2255,46 @@ mod tests {
                 action: TestAction::Quit
             })
         ));
+    }
+
+    #[test]
+    fn describe_group_preserves_shorter_leaf_binding_in_other_scope() {
+        // Regression: calling describe_group("p") in one scope would promote
+        // the shared "p" node from Leaf to Branch, discarding the existing
+        // "p" leaf binding in another scope. The original binding silently
+        // disappeared — navigate() returned None and catch-all fired instead.
+        //
+        // This mirrors the jinn bug: "p" bound in Normal scope, "p" used as
+        // a describe_group prefix in SidebarSessions scope. Pressing "p" in
+        // Normal scope fired NoOp (catch-all) instead of ChatEntryPinSelected.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "p",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Global,
+        );
+        keymap.scope(TestScope::Insert, |b| {
+            b.describe_group("p", "plugin");
+            b.bind("pt", TestAction::Save, TestCategory::General);
+        });
+
+        // When navigating to "p" in Global scope.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('p'), KeyModifiers::empty())],
+            &TestScope::Global,
+        );
+
+        // Then the Quit action is still returned — the leaf binding survived
+        // the Leaf→Branch promotion caused by the describe_group in Insert scope.
+        assert!(
+            matches!(
+                result,
+                Some(NodeResult::Leaf {
+                    action: TestAction::Quit
+                })
+            ),
+            "shorter leaf binding must survive describe_group promotion; got {result:?}"
+        );
     }
 }
