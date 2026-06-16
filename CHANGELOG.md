@@ -3,6 +3,10 @@
 ### 🚀 Features
 
 - Global keymap bindings + public surface reduction
+
+### ⚙️ Miscellaneous Tasks
+
+- Changelog update
 ## [0.12.1] - 2026-06-13
 
 ### 🐛 Bug Fixes
