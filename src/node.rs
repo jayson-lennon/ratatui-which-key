@@ -26,7 +26,10 @@ pub struct LeafEntry<S, A, C> {
     /// Category for grouping related actions.
     pub category: C,
     /// Scope where this action is valid.
-    pub scope: S,
+    ///
+    /// `None` means the binding is global — it applies in every scope.
+    /// A specific-scope entry always wins over a global one for the same key.
+    pub scope: Option<S>,
 }
 
 /// A node in the keybinding tree, either a leaf with actions or a branch with children.
@@ -68,7 +71,11 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
                 leaf_entries,
                 ..
             } => {
-                if let Some(entry) = leaf_entries.iter().find(|e| e.scope == *scope) {
+                if let Some(entry) = leaf_entries
+                    .iter()
+                    .find(|e| e.scope.as_ref() == Some(scope))
+                    .or_else(|| leaf_entries.iter().find(|e| e.scope.is_none()))
+                {
                     Cow::Borrowed(&entry.description)
                 } else if let Some((_, scoped_desc)) =
                     scope_descriptions.iter().find(|(s, _)| s == scope)
@@ -91,6 +98,7 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
     /// For leaves, returns the first entry's category.
     /// For branches with an explicit category, returns that.
     /// For branches without, returns `None`.
+    #[cfg(test)]
     pub fn category(&self) -> Option<C>
     where
         C: Clone,
@@ -100,29 +108,8 @@ impl<K: Key, S, A, C> KeyNode<K, S, A, C> {
             KeyNode::Branch { category, .. } => category.clone(),
         }
     }
-
-    /// Returns a mutable reference to the child with the given key, if found.
-    pub fn find_child_mut(&mut self, key: &K) -> Option<&mut KeyChild<K, S, A, C>>
-    where
-        K: PartialEq,
-    {
-        match self {
-            KeyNode::Leaf(_) => None,
-            KeyNode::Branch { children, .. } => children.iter_mut().find(|c| c.key == *key),
-        }
-    }
-
-    /// Returns a reference to the child with the given key, if found.
-    pub fn find_child(&self, key: &K) -> Option<&KeyChild<K, S, A, C>>
-    where
-        K: PartialEq,
-    {
-        match self {
-            KeyNode::Leaf(_) => None,
-            KeyNode::Branch { children, .. } => children.iter().find(|c| c.key == *key),
-        }
-    }
 }
+
 
 /// A key binding with its associated key and node.
 #[derive(Debug, Clone)]
@@ -134,18 +121,18 @@ pub struct KeyChild<K: Key, S, A, C> {
 }
 
 impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
-    /// Creates a new key child with the given key and node.
-    pub fn new(key: K, node: KeyNode<K, S, A, C>) -> Self {
-        Self { key, node }
-    }
-
     /// Creates a leaf key child with a single action entry.
+    ///
+    /// The `scope` is stored as `Some(scope)`; a scoped binding. Use
+    /// [`Keymap::bind_global`](crate::Keymap::bind_global) to add a binding
+    /// that applies in every scope.
+    #[cfg(test)]
     pub fn leaf(key: K, action: A, description: String, category: C, scope: S) -> Self {
         let entry = LeafEntry {
             action,
             description,
             category,
-            scope,
+            scope: Some(scope),
         };
         Self {
             key,
@@ -181,20 +168,6 @@ impl<K: Key, S: Clone, A: Clone, C: Clone> KeyChild<K, S, A, C> {
     }
 }
 
-/// A flattened key binding for display purposes.
-#[derive(Debug, Clone)]
-pub struct LeafBinding<K: Key, S, A, C> {
-    /// The key that triggers this binding.
-    pub key: K,
-    /// The action to execute.
-    pub action: A,
-    /// Human-readable description of the action.
-    pub description: String,
-    /// Category for grouping related actions.
-    pub category: C,
-    /// Scope where this action is valid.
-    pub scope: S,
-}
 
 #[cfg(test)]
 mod tests {
@@ -313,7 +286,7 @@ mod tests {
                 action: TestAction::Save,
                 description: "start analysis".to_string(),
                 category: TestCategory::General,
-                scope: TestScope::Normal,
+                scope: Some(TestScope::Normal),
             }],
             category: None,
         };
@@ -342,7 +315,7 @@ mod tests {
                 action: TestAction::Save,
                 description: "start analysis".to_string(),
                 category: TestCategory::General,
-                scope: TestScope::Normal,
+                scope: Some(TestScope::Normal),
             }],
             category: None,
         };

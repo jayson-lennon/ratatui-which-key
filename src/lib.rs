@@ -338,16 +338,24 @@ mod widget;
 #[cfg(feature = "crossterm")]
 mod crossterm;
 
-pub use category_builder::CategoryBuilder;
-pub use group_builder::GroupBuilder;
+// Builder contract — the official public-facing API of the crate.
+// Introspection node types (KeyChild/KeyNode/LeafEntry/LeafBinding) and
+// the category/group builder helpers are intentionally NOT re-exported:
+// they are internal representation. Only the types returned by public
+// methods (navigate/get_bindings_for_scope/...) stay exported.
 pub use key::Key;
 pub use key::parse_key_sequence;
 pub use keymap::Keymap;
-pub use node::{KeyChild, KeyNode, LeafBinding, LeafEntry};
-
-pub use scope_and_category_builder::ScopeAndCategoryBuilder;
 pub use scope_builder::ScopeBuilder;
 pub use state::WhichKeyState;
+
+// Crate-internal re-export: node types used across modules, but not part
+// of the public contract.
+pub(crate) use node::{KeyChild, KeyNode, LeafEntry};
+pub use category_builder::CategoryBuilder;
+pub use group_builder::GroupBuilder;
+pub use scope_and_category_builder::ScopeAndCategoryBuilder;
+
 pub use types::{Binding, BindingGroup, DisplayBinding, NodeResult};
 pub use widget::{DisplayMode, LayoutStrategy, PopupPosition, WhichKey};
 

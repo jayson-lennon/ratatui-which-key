@@ -109,7 +109,8 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
 
     /// Returns a slice of all root-level key bindings.
     #[must_use]
-    pub fn bindings(&self) -> &[KeyChild<K, S, A, C>] {
+    #[cfg(test)]
+    pub(crate) fn bindings(&self) -> &[KeyChild<K, S, A, C>] {
         &self.bindings
     }
 
@@ -125,11 +126,35 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         if keys.is_empty() {
             return self;
         }
-        self.insert_into_tree(&keys, action, category, scope);
+        self.insert_into_tree(&keys, action, category, Some(scope));
         self
     }
 
-    pub(super) fn insert_into_tree(&mut self, keys: &[K], action: A, category: C, scope: S)
+    /// Binds a key sequence to an action that is active in **every** scope.
+    ///
+    /// Unlike [`bind`](Self::bind), a global binding has no specific scope; it
+    /// resolves in any scope where no more specific binding exists. This lets a
+    /// key (e.g. an overlay-toggle) survive scopes that register a [`catch_all`]
+    /// handler, because `navigate` resolves the global leaf before any catch-all
+    /// fallback runs.
+    ///
+    /// [`catch_all`]: Self::catch_all
+    pub fn bind_global(&mut self, sequence: &str, action: A, category: C) -> &mut Self
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        A: Clone + std::fmt::Display,
+        C: Clone,
+    {
+        let keys = parse_key_sequence(sequence, &self.leader_key);
+        if keys.is_empty() {
+            return self;
+        }
+        self.insert_into_tree(&keys, action, category, None);
+        self
+    }
+
+    pub(super) fn insert_into_tree(&mut self, keys: &[K], action: A, category: C, scope: Option<S>)
     where
         K: Clone,
         S: Clone + PartialEq,
@@ -147,7 +172,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         }
     }
 
-    fn build_tree(keys: &[K], action: A, category: C, scope: S) -> KeyChild<K, S, A, C>
+    fn build_tree(keys: &[K], action: A, category: C, scope: Option<S>) -> KeyChild<K, S, A, C>
     where
         K: Clone,
         S: Clone,
@@ -156,7 +181,16 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
     {
         if keys.len() == 1 {
             let description = action.to_string();
-            KeyChild::leaf(keys[0].clone(), action, description, category, scope)
+            let entry = LeafEntry {
+                action,
+                description,
+                category,
+                scope,
+            };
+            KeyChild {
+                key: keys[0].clone(),
+                node: KeyNode::Leaf(vec![entry]),
+            }
         } else {
             let first = keys[0].clone();
             let rest = &keys[1..];
@@ -170,7 +204,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         keys: &[K],
         action: A,
         category: C,
-        scope: S,
+        scope: Option<S>,
     ) where
         K: Clone,
         S: Clone + PartialEq,
@@ -237,7 +271,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
 
     /// Returns the node at the given key path, or `None` if not found.
     #[must_use]
-    pub fn get_node_at_path(&self, keys: &[K]) -> Option<&KeyNode<K, S, A, C>>
+    pub(crate) fn get_node_at_path(&self, keys: &[K]) -> Option<&KeyNode<K, S, A, C>>
     where
         K: PartialEq,
     {
@@ -338,7 +372,8 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 KeyNode::Leaf(entries) => {
                     entries
                         .iter()
-                        .find(|entry| entry.scope == scope)
+                        .find(|entry| entry.scope.as_ref() == Some(&scope))
+                        .or_else(|| entries.iter().find(|entry| entry.scope.is_none()))
                         .map(|entry| DisplayBinding {
                             key: child.key.clone(),
                             description: entry.description.clone(),
@@ -346,7 +381,7 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                         })
                 }
                 KeyNode::Branch { leaf_entries, category, .. } => {
-                    if let Some(entry) = leaf_entries.iter().find(|e| e.scope == scope) {
+                    if let Some(entry) = leaf_entries.iter().find(|e| e.scope.as_ref() == Some(&scope)).or_else(|| leaf_entries.iter().find(|e| e.scope.is_none())) {
                         Some(DisplayBinding {
                             key: child.key.clone(),
                             description: entry.description.clone(),
@@ -382,7 +417,8 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         match node {
             KeyNode::Leaf(entries) => entries
                 .iter()
-                .find(|e| &e.scope == scope)
+                .find(|e| e.scope.as_ref() == Some(scope))
+                .or_else(|| entries.iter().find(|e| e.scope.is_none()))
                 .map(|e| e.category.clone()),
             KeyNode::Branch { children, .. } => children
                 .iter()
@@ -444,13 +480,19 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         C: Clone,
     {
         match node {
-            KeyNode::Leaf(entries) => entries.iter().any(|e| &e.scope == scope),
+            KeyNode::Leaf(entries) => {
+                entries
+                    .iter()
+                    .any(|e| e.scope.as_ref() == Some(scope) || e.scope.is_none())
+            }
             KeyNode::Branch {
                 children,
                 leaf_entries,
                 ..
             } => {
-                leaf_entries.iter().any(|e| &e.scope == scope)
+                leaf_entries
+                    .iter()
+                    .any(|e| e.scope.as_ref() == Some(scope) || e.scope.is_none())
                     || children
                         .iter()
                         .any(|c| Self::has_bindings_for_scope(&c.node, scope))
@@ -480,7 +522,11 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                 leaf_entries,
                 ..
             } => {
-                if let Some(entry) = leaf_entries.iter().find(|e| &e.scope == scope) {
+                if let Some(entry) = leaf_entries
+                    .iter()
+                    .find(|e| e.scope.as_ref() == Some(scope))
+                    .or_else(|| leaf_entries.iter().find(|e| e.scope.is_none()))
+                {
                     Some(NodeResult::Leaf {
                         action: entry.action.clone(),
                     })
@@ -503,7 +549,8 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
             KeyNode::Leaf(entries) => {
                 entries
                     .iter()
-                    .find(|e| &e.scope == scope)
+                    .find(|e| e.scope.as_ref() == Some(scope))
+                    .or_else(|| entries.iter().find(|e| e.scope.is_none()))
                     .map(|e| NodeResult::Leaf {
                         action: e.action.clone(),
                     })
@@ -1042,7 +1089,7 @@ mod tests {
     fn get_leaf_entries<S: Clone + PartialEq, A: Clone, C: Clone + PartialEq>(
         keymap: &Keymap<KeyEvent, S, A, C>,
         key: KeyEvent,
-    ) -> Vec<(S, A, C, String)> {
+    ) -> Vec<(Option<S>, A, C, String)> {
         let child = keymap
             .bindings()
             .iter()
@@ -1282,8 +1329,8 @@ mod tests {
         // Then the leaf has two entries with the correct scopes.
         let entries = get_leaf_entries(&keymap, KeyEvent::new(KeyCode::Esc, KeyModifiers::empty()));
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].0, TestScope::Global);
-        assert_eq!(entries[1].0, TestScope::Insert);
+        assert_eq!(entries[0].0, Some(TestScope::Global));
+        assert_eq!(entries[1].0, Some(TestScope::Insert));
     }
 
     #[test]
@@ -1824,7 +1871,7 @@ mod tests {
             });
             if let KeyNode::Leaf(entries) = node {
                 assert_eq!(entries.len(), 1, "expected 1 entry at key {key:?}");
-                assert_eq!(entries[0].scope, TestScope::Global);
+                assert_eq!(entries[0].scope, Some(TestScope::Global));
                 assert_eq!(entries[0].action, expected_action);
                 assert_eq!(entries[0].category, expected_category);
             } else {
@@ -2296,5 +2343,109 @@ mod tests {
             ),
             "shorter leaf binding must survive describe_group promotion; got {result:?}"
         );
+    }
+    #[test]
+    fn global_binding_fires_in_scope_with_explicit_binding() {
+        // Given a global binding 'q' and a scope with its own 'q' binding.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind_global("q", TestAction::Quit, TestCategory::General);
+        keymap.bind(
+            "q",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When navigating 'q' in Insert scope (no explicit Insert binding).
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())],
+            &TestScope::Insert,
+        );
+
+        // Then the global binding fires.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn specific_scope_wins_over_global_binding() {
+        // Given a global binding 'q' and a specific Normal-scope 'q' binding.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind_global("q", TestAction::Quit, TestCategory::General);
+        keymap.bind(
+            "q",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When navigating 'q' in Normal scope.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())],
+            &TestScope::Normal,
+        );
+
+        // Then the specific-scope binding wins.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Save
+            })
+        ));
+    }
+
+    #[test]
+    fn global_binding_fires_in_scope_without_binding_for_key() {
+        // Given a global binding 'q' and a scope with no 'q' binding.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind_global("q", TestAction::Quit, TestCategory::General);
+        keymap.bind(
+            "x",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When navigating 'q' in Normal scope.
+        let result = keymap.navigate(
+            &[KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())],
+            &TestScope::Normal,
+        );
+
+        // Then the global binding fires.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn global_multi_key_binding_resolves_at_leaf() {
+        // Given a global multi-key binding 'gq'.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind_global("gq", TestAction::Quit, TestCategory::General);
+
+        // When navigating the 'gq' sequence in Normal scope.
+        let result = keymap.navigate(
+            &[
+                KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty()),
+                KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty()),
+            ],
+            &TestScope::Normal,
+        );
+
+        // Then the leaf action fires.
+        assert!(matches!(
+            result,
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
     }
 }

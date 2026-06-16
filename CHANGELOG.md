@@ -1,3 +1,16 @@
+## [0.13.0] - 2026-06-16
+
+### 🚀 Features
+
+- Add `Keymap::bind_global` for scope-agnostic bindings that fire in every scope
+- Global bindings act as fallback; specific-scope bindings take precedence
+
+### ♻️ Refactor
+
+- Reduce public surface area: node introspection types (`LeafEntry`, `KeyNode`, `KeyChild`) are now `pub(crate)`
+- Remove unused dead code (`LeafBinding`, `KeyChild::new`, `find_child`, `find_child_mut`)
+
+## [0.12.1] - 2026-06-13
 ## [0.12.1] - 2026-06-13
 
 ### 🐛 Bug Fixes

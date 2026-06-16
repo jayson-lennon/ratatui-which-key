@@ -72,7 +72,7 @@ mod tests {
         if let Some(KeyNode::Leaf(entries)) = node {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].action, TestAction::Open);
-            assert_eq!(entries[0].scope, TestScope::Global);
+            assert_eq!(entries[0].scope, Some(TestScope::Global));
             assert_eq!(entries[0].category, TestCategory::Navigation);
         } else {
             panic!("Expected leaf node");
@@ -103,19 +103,19 @@ mod tests {
 
         if let Some(KeyNode::Leaf(entries)) = quit_node {
             assert_eq!(entries[0].action, TestAction::Quit);
-            assert_eq!(entries[0].scope, TestScope::Insert);
+            assert_eq!(entries[0].scope, Some(TestScope::Insert));
             assert_eq!(entries[0].category, TestCategory::General);
         }
 
         if let Some(KeyNode::Leaf(entries)) = save_node {
             assert_eq!(entries[0].action, TestAction::Save);
-            assert_eq!(entries[0].scope, TestScope::Insert);
+            assert_eq!(entries[0].scope, Some(TestScope::Insert));
             assert_eq!(entries[0].category, TestCategory::General);
         }
 
         if let Some(KeyNode::Leaf(entries)) = open_node {
             assert_eq!(entries[0].action, TestAction::Open);
-            assert_eq!(entries[0].scope, TestScope::Insert);
+            assert_eq!(entries[0].scope, Some(TestScope::Insert));
             assert_eq!(entries[0].category, TestCategory::General);
         }
     }

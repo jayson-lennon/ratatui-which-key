@@ -137,7 +137,7 @@ pub fn assert_leaf_entry<K, S, A, C>(
         entries.len()
     );
     assert_eq!(entries[0].action, expected_action, "Action mismatch");
-    assert_eq!(entries[0].scope, expected_scope, "Scope mismatch");
+    assert_eq!(entries[0].scope.as_ref(), Some(&expected_scope), "Scope mismatch");
 }
 
 pub fn assert_branch_at_path<K, S, A, C>(
@@ -237,7 +237,7 @@ pub fn assert_nth_child_is_leaf<K, S, A, C>(
                 entries.len()
             );
             assert_eq!(entries[0].action, expected_action, "Action mismatch");
-            assert_eq!(entries[0].scope, expected_scope, "Scope mismatch");
+            assert_eq!(entries[0].scope.as_ref(), Some(&expected_scope), "Scope mismatch");
         }
         KeyNode::Branch { .. } => panic!("Expected Leaf at index {index}, got Branch"),
     }
@@ -327,7 +327,7 @@ pub fn assert_leaf_scope_at_index(
         KeyNode::Leaf(entries) => entries,
         KeyNode::Branch { .. } => panic!("Expected Leaf node at path, got Branch"),
     };
-    assert_eq!(entries[index].scope, expected_scope);
+    assert_eq!(entries[index].scope.as_ref(), Some(&expected_scope));
 }
 
 pub fn assert_branch_child_key(

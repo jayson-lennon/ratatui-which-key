@@ -41,7 +41,7 @@ impl<'a, K: Key, S, A, C> GroupBuilder<'a, K, S, A, C> {
         }
         let full_sequence: Vec<K> = self.prefix.iter().cloned().chain(keys).collect();
         self.keymap
-            .insert_into_tree(&full_sequence, action, category, scope);
+            .insert_into_tree(&full_sequence, action, category, Some(scope));
         self
     }
 
