@@ -2,20 +2,16 @@
 
 ### 🚀 Features
 
-- Add `Keymap::bind_global` for scope-agnostic bindings that fire in every scope
-- Global bindings act as fallback; specific-scope bindings take precedence
-
-### ♻️ Refactor
-
-- Reduce public surface area: node introspection types (`LeafEntry`, `KeyNode`, `KeyChild`) are now `pub(crate)`
-- Remove unused dead code (`LeafBinding`, `KeyChild::new`, `find_child`, `find_child_mut`)
-
-## [0.12.1] - 2026-06-13
+- Global keymap bindings + public surface reduction
 ## [0.12.1] - 2026-06-13
 
 ### 🐛 Bug Fixes
 
 - Preserve leaf bindings when describe_group promotes Leaf to Branch
+
+### ⚙️ Miscellaneous Tasks
+
+- Release ratatui-which-key version 0.12.1
 ## [0.12.0] - 2026-05-22
 
 ### ⚙️ Miscellaneous Tasks
