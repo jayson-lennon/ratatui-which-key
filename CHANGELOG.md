@@ -1,3 +1,9 @@
+## [0.13.1] - 2026-07-06
+
+### 🐛 Bug Fixes
+
+- Branches with explicit category no longer leak into unrelated scopes
+
 ## [0.13.0] - 2026-06-16
 
 ### 🚀 Features
