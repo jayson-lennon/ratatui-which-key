@@ -7,6 +7,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Release ratatui-which-key version 0.13.1
+- Changelog update
 ## [0.13.0] - 2026-06-16
 
 ### 🚀 Features
