@@ -1,9 +1,12 @@
-## [0.13.1] - 2026-07-06
+## [0.14.0] - 2026-07-06
 
 ### 🐛 Bug Fixes
 
 - Branches with explicit category no longer leak into unrelated scopes
 
+### ⚙️ Miscellaneous Tasks
+
+- Release ratatui-which-key version 0.13.1
 ## [0.13.0] - 2026-06-16
 
 ### 🚀 Features
@@ -13,6 +16,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Changelog update
+- Release ratatui-which-key version 0.13.0
 ## [0.12.1] - 2026-06-13
 
 ### 🐛 Bug Fixes
