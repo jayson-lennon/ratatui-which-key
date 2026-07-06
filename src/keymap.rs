@@ -387,6 +387,12 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
                             description: entry.description.clone(),
                             category: entry.category.clone(),
                         })
+                    } else if !Self::has_bindings_for_scope(&child.node, &scope) {
+                        // Branch has no bindings (leaf or descendant) for
+                        // this scope. Previously, a branch with an explicit
+                        // category was included unconditionally, leaking
+                        // scope-inapplicable bindings into the popup.
+                        None
                     } else if let Some(cat) = category {
                         Some(DisplayBinding {
                             key: child.key.clone(),
@@ -1649,6 +1655,29 @@ mod tests {
         let keys: Vec<_> = result.iter().map(|b| b.key).collect();
         assert!(keys.contains(&KeyEvent::new(KeyCode::Char('g'), KeyModifiers::empty())));
         assert!(keys.contains(&KeyEvent::new(KeyCode::Char('q'), KeyModifiers::empty())));
+    }
+
+    #[test]
+    fn branch_with_category_does_not_leak_into_unrelated_scope() {
+        // Given a branch with an explicit category whose children are all
+        // bound to Normal scope.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap
+            .describe_group_with_category("p", "plugin", TestCategory::Navigation)
+            .bind("pt", TestAction::Open, TestCategory::Navigation, TestScope::Normal);
+
+        // When getting bindings for Insert scope (a scope with no 'p' children).
+        let result = keymap.get_bindings_for_scope(TestScope::Insert);
+
+        // Then the branch does NOT appear — it has no bindings for Insert.
+        // Previously, the explicit category caused the branch to leak into
+        // every scope's popup regardless of whether any child matched.
+        let keys: Vec<_> = result.iter().map(|b| &b.key).collect();
+        let p_key = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::empty());
+        assert!(
+            !keys.contains(&&p_key),
+            "branch with category should not leak into unrelated scope; got {keys:?}"
+        );
     }
 
     #[test]
