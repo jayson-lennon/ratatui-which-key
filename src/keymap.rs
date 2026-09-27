@@ -154,6 +154,132 @@ impl<K: Key, S, A, C: Clone> Keymap<K, S, A, C> {
         self
     }
 
+    /// Removes the binding for `sequence` in `scope`.
+    ///
+    /// A binding is one (key sequence, scope) pair: unbinding in one scope
+    /// leaves every other scope's binding for the same sequence intact, and
+    /// leaves a global binding in place. This is the inverse of
+    /// [`bind`](Self::bind), which replaces an existing entry for the same
+    /// pair.
+    ///
+    /// A multi-key sequence is stored as a chain of branch nodes, so removing
+    /// it prunes each node it leaves with no children and no remaining leaf
+    /// entries. A node shared with another sequence — `g` leading to both
+    /// `gmr` and `gcr` — survives while any of its siblings remain.
+    ///
+    /// Unbinding a sequence that is not bound, or whose deeper path does not
+    /// exist, is a no-op.
+    ///
+    /// ```
+    /// # use ratatui_which_key::Keymap;
+    /// # use crossterm::event::{KeyCode, KeyEvent};
+    /// # #[derive(Debug, Clone)]
+    /// # enum Action { Quit, Save }
+    /// # impl std::fmt::Display for Action {
+    /// #     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "act") }
+    /// # }
+    /// # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
+    /// # enum Scope { Global, Normal }
+    /// # #[derive(derive_more::Display, Debug, Clone, PartialEq)]
+    /// # enum Category { General }
+    /// let mut keymap: Keymap<KeyEvent, Scope, Action, Category> = Keymap::new();
+    /// keymap.bind("q", Action::Quit, Category::General, Scope::Normal);
+    ///
+    /// keymap.unbind("q", Scope::Normal);
+    ///
+    /// assert!(keymap
+    ///     .navigate(&[KeyEvent::from(KeyCode::Char('q'))], &Scope::Normal)
+    ///     .is_none());
+    /// ```
+    pub fn unbind(&mut self, sequence: &str, scope: S) -> &mut Self
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        C: Clone,
+    {
+        let keys = parse_key_sequence(sequence, &self.leader_key);
+        if keys.is_empty() {
+            return self;
+        }
+        self.remove_binding(&keys, &scope);
+        self
+    }
+
+    /// Descends `keys` and removes the entry for `scope` at the end of the
+    /// path, pruning every node the removal empties.
+    fn remove_binding(&mut self, keys: &[K], scope: &S)
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        C: Clone,
+    {
+        let Some(index) = self.bindings.iter().position(|c| c.key == keys[0]) else {
+            return;
+        };
+        let emptied = if keys.len() == 1 {
+            Self::remove_entry_from_node(&mut self.bindings[index].node, scope)
+        } else {
+            Self::remove_from_node(&mut self.bindings[index].node, &keys[1..], scope)
+        };
+        if emptied {
+            self.bindings.remove(index);
+        }
+    }
+
+    /// Removes the `scope` entry held directly by this node. Returns whether
+    /// the node is now empty and should be pruned by its parent.
+    fn remove_entry_from_node(node: &mut KeyNode<K, S, A, C>, scope: &S) -> bool
+    where
+        S: Clone + PartialEq,
+        C: Clone,
+    {
+        match node {
+            KeyNode::Leaf(entries) => {
+                entries.retain(|e| e.scope.as_ref() != Some(scope));
+                entries.is_empty()
+            }
+            KeyNode::Branch {
+                children,
+                leaf_entries,
+                ..
+            } => {
+                leaf_entries.retain(|e| e.scope.as_ref() != Some(scope));
+                children.is_empty() && leaf_entries.is_empty()
+            }
+        }
+    }
+
+    /// Descends one more level of `keys` and removes the `scope` entry at the
+    /// end. Returns whether the node is now empty and should be pruned by its
+    /// parent.
+    fn remove_from_node(node: &mut KeyNode<K, S, A, C>, keys: &[K], scope: &S) -> bool
+    where
+        K: Clone,
+        S: Clone + PartialEq,
+        C: Clone,
+    {
+        let KeyNode::Branch {
+            children,
+            leaf_entries,
+            ..
+        } = node
+        else {
+            // A leaf reached before the end of the sequence: the deeper
+            // binding was never created, so there is nothing to remove.
+            return false;
+        };
+        let Some(index) = children.iter().position(|c| c.key == keys[0]) else {
+            return false;
+        };
+        if keys.len() == 1 {
+            return Self::remove_entry_from_node(&mut children[index].node, scope);
+        }
+        if Self::remove_from_node(&mut children[index].node, &keys[1..], scope) {
+            children.remove(index);
+        }
+        children.is_empty() && leaf_entries.is_empty()
+    }
+
     pub(super) fn insert_into_tree(&mut self, keys: &[K], action: A, category: C, scope: Option<S>)
     where
         K: Clone,
@@ -2476,5 +2602,194 @@ mod tests {
                 action: TestAction::Quit
             })
         ));
+    }
+
+    fn keys(text: &str) -> Vec<KeyEvent> {
+        text.chars()
+            .map(|c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::empty()))
+            .collect()
+    }
+
+    #[test]
+    fn unbind_removes_the_binding_for_that_scope() {
+        // Given a keymap with `q` bound in Normal.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "q",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding it in Normal.
+        keymap.unbind("q", TestScope::Normal);
+
+        // Then the sequence resolves to nothing.
+        assert!(keymap.navigate(&keys("q"), &TestScope::Normal).is_none());
+    }
+
+    #[test]
+    fn unbind_leaves_the_same_sequence_bound_in_other_scopes() {
+        // Given `q` bound in two scopes.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "q",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+        keymap.bind("q", TestAction::Save, TestCategory::General, TestScope::Insert);
+
+        // When unbinding it in Normal only.
+        keymap.unbind("q", TestScope::Normal);
+
+        // Then the Insert scope binding survives.
+        assert!(matches!(
+            keymap.navigate(&keys("q"), &TestScope::Insert),
+            Some(NodeResult::Leaf {
+                action: TestAction::Save
+            })
+        ));
+    }
+
+    #[test]
+    fn unbind_prunes_the_branch_it_empties() {
+        // Given a keymap whose only binding is the three-key sequence `gci`.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "gci",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding the whole sequence.
+        keymap.unbind("gci", TestScope::Normal);
+
+        // Then the `g` branch is gone from the tree, not left empty.
+        assert_eq!(keymap.bindings().len(), 1, "only the leader group remains");
+        assert!(!keymap.is_prefix_key(KeyEvent::new(
+            KeyCode::Char('g'),
+            KeyModifiers::empty()
+        )));
+    }
+
+    #[test]
+    fn unbind_keeps_a_prefix_that_a_sibling_sequence_still_uses() {
+        // Given two three-key sequences sharing the `g` prefix.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "gmr",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+        keymap.bind(
+            "gcr",
+            TestAction::Save,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding one of them.
+        keymap.unbind("gcr", TestScope::Normal);
+
+        // Then the shared `g` branch survives for the other sequence.
+        assert!(matches!(
+            keymap.navigate(&keys("gmr"), &TestScope::Normal),
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+        assert!(keymap.navigate(&keys("gcr"), &TestScope::Normal).is_none());
+    }
+
+    #[test]
+    fn unbind_leaves_a_shorter_binding_on_a_shared_prefix_intact() {
+        // Given `g` bound as a leaf action and `gmr` bound beneath it.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind("g", TestAction::Open, TestCategory::General, TestScope::Normal);
+        keymap.bind(
+            "gmr",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding the deeper sequence.
+        keymap.unbind("gmr", TestScope::Normal);
+
+        // Then the shorter `g` binding survives on the promoted node.
+        assert!(matches!(
+            keymap.navigate(&keys("g"), &TestScope::Normal),
+            Some(NodeResult::Leaf {
+                action: TestAction::Open
+            })
+        ));
+    }
+
+    #[test]
+    fn unbind_of_an_unbound_sequence_is_a_no_op() {
+        // Given a keymap with one binding.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "q",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding a different sequence, and one bound in another scope.
+        keymap.unbind("z", TestScope::Normal);
+        keymap.unbind("q", TestScope::Insert);
+
+        // Then the original binding is untouched.
+        assert!(matches!(
+            keymap.navigate(&keys("q"), &TestScope::Normal),
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn unbind_leaves_a_global_binding_in_place() {
+        // Given a global binding, which is stored with no scope.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind_global("q", TestAction::Quit, TestCategory::General);
+
+        // When unbinding it in a named scope.
+        keymap.unbind("q", TestScope::Normal);
+
+        // Then it still resolves, since a global binding is not scoped.
+        assert!(matches!(
+            keymap.navigate(&keys("q"), &TestScope::Normal),
+            Some(NodeResult::Leaf {
+                action: TestAction::Quit
+            })
+        ));
+    }
+
+    #[test]
+    fn unbind_drops_the_binding_from_the_scope_listing() {
+        // Given `q` bound in Normal.
+        let mut keymap: Keymap<KeyEvent, TestScope, TestAction, TestCategory> = Keymap::new();
+        keymap.bind(
+            "q",
+            TestAction::Quit,
+            TestCategory::General,
+            TestScope::Normal,
+        );
+
+        // When unbinding it.
+        keymap.unbind("q", TestScope::Normal);
+
+        // Then the scope's binding listing no longer offers it.
+        assert!(
+            keymap
+                .get_bindings_for_scope(TestScope::Normal)
+                .is_empty(),
+            "an unbound key must not be offered to the popup"
+        );
     }
 }
