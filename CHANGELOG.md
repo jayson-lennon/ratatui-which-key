@@ -1,3 +1,8 @@
+## [0.15.0] - 2026-09-27
+
+### 🚀 Features
+
+- *(keymap)* Add unbind with branch pruning
 ## [0.14.0] - 2026-07-06
 
 ### 🐛 Bug Fixes
@@ -8,6 +13,7 @@
 
 - Release ratatui-which-key version 0.13.1
 - Changelog update
+- Release ratatui-which-key version 0.14.0
 ## [0.13.0] - 2026-06-16
 
 ### 🚀 Features
@@ -178,15 +184,15 @@
 - Update doc comments for new Display trait req
 - Custom leader key now respected"
 
-### 🚜 Refactor
-
-- Use derive_more in demo
-- Convert with_leader to builder pattern
-
 ### 📚 Documentation
 
 - Better docs
 - Simplify readme and update sections
+
+### 🚜 Refactor
+
+- Use derive_more in demo
+- Convert with_leader to builder pattern
 
 ### ⚙️ Miscellaneous Tasks
 
