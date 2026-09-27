@@ -3,6 +3,10 @@
 ### 🚀 Features
 
 - *(keymap)* Add unbind with branch pruning
+
+### ⚙️ Miscellaneous Tasks
+
+- Release ratatui-which-key version 0.15.0
 ## [0.14.0] - 2026-07-06
 
 ### 🐛 Bug Fixes
